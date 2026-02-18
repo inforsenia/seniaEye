@@ -105,9 +105,4 @@ El sistema puede generar alertas ante:
 
 ---
 
-## Enfoque del Proyecto
-
-Este sistema está diseñado específicamente para entornos controlados de evaluación académica, respetando las políticas internas de la institución y con fines de supervisión durante exámenes.
-
----
 
