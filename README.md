@@ -26,7 +26,7 @@ Cada equipo del aula ejecuta un agente de monitorización que realiza las siguie
 
 Se supervisa el tráfico de red saliente para garantizar que únicamente se utilicen los siguientes puertos permitidos:
 
-* **53** → DNS
+* **53, 853, 443** → DNS
 * **80** → HTTP
 * **443** → HTTPS
 * **22** → SSH (en red local)
@@ -41,6 +41,7 @@ El sistema inspecciona las consultas DNS realizadas por el equipo para:
 
 * Identificar los dominios a los que se intenta acceder.
 * Comparar los dominios consultados con una **blacklist predefinida** de sitios no permitidos.
+* Bloqueara IP de DNS conocidos para DoH o Analizar trafico hhts a dichas Ips
 
 ---
 
