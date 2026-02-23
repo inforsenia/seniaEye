@@ -19,7 +19,7 @@ El sistema supervisa la actividad de red y el estado del equipo, enviando la inf
 ---
 
 ## Funcionamiento General
-
+Se programa en python.
 Cada equipo del aula ejecuta un agente de monitorización que realiza las siguientes tareas:
 
 ### 1. Control de Puertos de Destino
@@ -67,20 +67,24 @@ El sistema también monitoriza cambios en las interfaces de red del equipo, con 
 
 ---
 
-## Envío y Visualización de Datos
+## Envío de datos por parte del agente 
 
-Toda la información recopilada por cada equipo:
-
-* Se envía periódicamente a un **servidor central**.
-* Se almacena y procesa.
-* Se presenta en una interfaz que permite:
-
-  * Visualizar eventos en tiempo real.
-  * Identificar posibles infracciones.
-  * Analizar el comportamiento de cada equipo.
-
+Los equipos disponen de un archivo de configuración llamado `seniaeye.conf` en el que se indica la IP del servidor y cualquier aspecto de configuración oportuno.
+Realizan la conexión mediante websocket con el servidor. En caso de de no poder realizarla lo vuelven a intentar 30 segundos más tarde  
 ---
 
+## Recepción y visualización de datos por parte del servidor
+Se realizará con una aplicación en flask.
+Cuando se arranca la aplicación aceptar conexiones dinámicamente a través de websockets.
+
+  * Se recopilada por cada equipo en un archivo los datos enviados por los agentes. Cada archivo incluye en su nombre el nombre del agente y la fecha
+  * A la información almacenada se le añade la hora minuto y segundo en que se ha obtenido.
+  * La información se visualiza en tiempo real
+  * Identificaa posibles infracciones.
+  * Analizar el comportamiento de cada equipo.
+
+
+---
 ## Eventos Detectados
 
 El sistema puede generar alertas ante:
