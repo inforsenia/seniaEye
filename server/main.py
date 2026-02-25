@@ -5,74 +5,102 @@ import json
 import asyncio
 from datetime import datetime
 from pathlib import Path
+import os
 
 app = FastAPI()
+
+# ── Comandos ───────────────────────────────────────────────────────────────────
+CMD_START = "START_MONITORING"
+CMD_STOP  = "STOP_MONITORING"
 
 # ── Estado global ──────────────────────────────────────────────────────────────
 
 class ConnectionManager:
     def __init__(self):
-        # Agentes conectados: host → WebSocket
-        self.agents: dict[str, WebSocket] = {}
-        # Dashboards conectados (solo 1, pero soportamos varios por robustez)
+        # agent_id → { "ws": WebSocket, "status": "waiting"|"monitoring" }
+        self.agents: dict[str, dict] = {}
         self.dashboards: list[WebSocket] = []
-        # Historial de eventos para nuevos dashboards que se conecten tarde
         self.event_log: list[dict] = []
 
+    # ── Agentes ────────────────────────────────────────────────────────────────
+
     async def connect_agent(self, ws: WebSocket, agent_id: str):
-        self.agents[agent_id] = ws
-        await self._broadcast_dashboard({
-            "type": "agent_connected",
-            "agent_id": agent_id,
-            "timestamp": _now()
-        })
+        self.agents[agent_id] = {"ws": ws, "status": "waiting"}
+        ev = {"type": "agent_connected", "agent_id": agent_id,
+              "status": "waiting", "timestamp": _now()}
+        self._append_log(ev)
+        await self._broadcast_dashboard(ev)
 
     def disconnect_agent(self, agent_id: str):
         self.agents.pop(agent_id, None)
-        asyncio.create_task(self._broadcast_dashboard({
-            "type": "agent_disconnected",
-            "agent_id": agent_id,
-            "timestamp": _now()
-        }))
+        ev = {"type": "agent_disconnected", "agent_id": agent_id, "timestamp": _now()}
+        self._append_log(ev)
+        asyncio.create_task(self._broadcast_dashboard(ev))
+
+    async def handle_agent_message(self, agent_id: str, raw: str):
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = {"raw": raw}
+
+        # El agente confirma su estado con {"ack": "START_MONITORING"|"STOP_MONITORING"}
+        if "ack" in payload:
+            new_status = "monitoring" if payload["ack"] == CMD_START else "waiting"
+            if agent_id in self.agents:
+                self.agents[agent_id]["status"] = new_status
+            ev = {"type": "agent_status", "agent_id": agent_id,
+                  "status": new_status, "timestamp": _now()}
+            self._append_log(ev)
+            await self._broadcast_dashboard(ev)
+            return
+
+        # Evento de monitorización normal
+        record = {"type": "event", "agent_id": agent_id,
+                  "timestamp": _now(), "data": payload}
+        self._append_log(record)
+        await self._broadcast_dashboard(record)
+
+    # ── Comandos hacia agentes ─────────────────────────────────────────────────
+
+    async def send_command(self, agent_id: str, command: str) -> bool:
+        entry = self.agents.get(agent_id)
+        if not entry:
+            return False
+        await entry["ws"].send_text(json.dumps({"command": command}))
+        return True
+
+    async def broadcast_command(self, command: str) -> list[str]:
+        reached = []
+        dead = []
+        for agent_id, entry in self.agents.items():
+            try:
+                await entry["ws"].send_text(json.dumps({"command": command}))
+                reached.append(agent_id)
+            except Exception:
+                dead.append(agent_id)
+        for aid in dead:
+            self.disconnect_agent(aid)
+        return reached
+
+    # ── Dashboard ──────────────────────────────────────────────────────────────
 
     async def connect_dashboard(self, ws: WebSocket):
         self.dashboards.append(ws)
-        # Enviar estado actual: agentes conectados + historial
         snapshot = {
             "type": "snapshot",
-            "agents": list(self.agents.keys()),
-            "events": self.event_log[-500:]  # últimos 500 eventos
+            "agents": {aid: entry["status"] for aid, entry in self.agents.items()},
+            "events": self.event_log[-500:]
         }
         await ws.send_text(json.dumps(snapshot))
 
     def disconnect_dashboard(self, ws: WebSocket):
-        self.dashboards.remove(ws)
+        if ws in self.dashboards:
+            self.dashboards.remove(ws)
 
-    async def handle_agent_event(self, agent_id: str, raw: str):
-        try:
-            evento = json.loads(raw)
-        except json.JSONDecodeError:
-            evento = {"raw": raw}
-
-        record = {
-            "type": "event",
-            "agent_id": agent_id,
-            "timestamp": _now(),
-            "data": evento
-        }
-        self.event_log.append(record)
+    def _append_log(self, ev: dict):
+        self.event_log.append(ev)
         if len(self.event_log) > 2000:
             self.event_log = self.event_log[-1000:]
-
-        await self._broadcast_dashboard(record)
-
-    async def send_command(self, agent_id: str, command: dict) -> bool:
-        """Envía un comando a un agente específico. Devuelve True si tuvo éxito."""
-        ws = self.agents.get(agent_id)
-        if not ws:
-            return False
-        await ws.send_text(json.dumps(command))
-        return True
 
     async def _broadcast_dashboard(self, message: dict):
         text = json.dumps(message)
@@ -104,7 +132,7 @@ async def websocket_agents(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.handle_agent_event(agent_id, data)
+            await manager.handle_agent_message(agent_id, data)
     except WebSocketDisconnect:
         print(f"[-] Agente desconectado: {agent_id}")
         manager.disconnect_agent(agent_id)
@@ -119,17 +147,33 @@ async def websocket_dashboard(websocket: WebSocket):
     await manager.connect_dashboard(websocket)
     try:
         while True:
-            # El dashboard puede enviar comandos: {"action":"send_command","agent_id":"...","command":{...}}
             raw = await websocket.receive_text()
             msg = json.loads(raw)
-            if msg.get("action") == "send_command":
-                success = await manager.send_command(msg["agent_id"], msg["command"])
+            action = msg.get("action")
+
+            if action == "send_command":
+                agent_id = msg["agent_id"]
+                command  = msg["command"]
+                success  = await manager.send_command(agent_id, command)
                 await websocket.send_text(json.dumps({
                     "type": "command_ack",
-                    "agent_id": msg["agent_id"],
+                    "agent_id": agent_id,
+                    "command": command,
                     "success": success,
                     "timestamp": _now()
                 }))
+
+            elif action == "broadcast_command":
+                command = msg["command"]
+                reached = await manager.broadcast_command(command)
+                await websocket.send_text(json.dumps({
+                    "type": "broadcast_ack",
+                    "command": command,
+                    "reached": reached,
+                    "count": len(reached),
+                    "timestamp": _now()
+                }))
+
     except WebSocketDisconnect:
         print("[-] Dashboard desconectado")
         manager.disconnect_dashboard(websocket)
@@ -137,9 +181,7 @@ async def websocket_dashboard(websocket: WebSocket):
 
 # ── HTTP: Servir el dashboard ──────────────────────────────────────────────────
 
-BASE_DIR = Path(__file__).parent
-#BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
-print(f"Base directory: {BASE_DIR}")
+BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 @app.get("/")

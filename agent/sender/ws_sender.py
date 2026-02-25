@@ -1,13 +1,10 @@
 import asyncio
 import json
 import logging
-from pathlib import Path
 from typing import List
-import os
 from websockets import connect, WebSocketException
 from websockets.exceptions import ConnectionClosed
-
-from agent.events.models import Event  # tu modelo de evento Pydantic
+from agent.events.models import Event
 from agent.config import load_config
 
 logger = logging.getLogger("ws_sender")
@@ -17,95 +14,132 @@ formatter = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+# Comandos — deben coincidir con los definidos en el servidor
+CMD_START = "START_MONITORING"
+CMD_STOP  = "STOP_MONITORING"
+
+
 class WSSender:
     def __init__(self):
-        self.config = load_config()  # Devuelve dict con 'server_url', etc.
-        self.server_url = self.config.get("server_ws_url")
-        self.retry_delay = self.config.get("retry_delay", 30)
+        self.config       = load_config()
+        self.server_url   = self.config.get("server_ws_url")
+        self.retry_delay  = self.config.get("retry_delay", 30)
         self.event_queue: List[Event] = []
-    """
-    async def send_event(self, ws, event: Event):
-        try:
-            data = event.json()
-            await ws.send(data)
-            logger.info(f"Evento enviado: {event}")
-        except WebSocketException as e:
-            logger.error(f"Error al enviar evento: {e}")
-            self.event_queue.append(event)  # Reintentar más tarde
-    """
-    async def flush_queue(self, ws):
-        """Enviar eventos pendientes"""
-        if not self.event_queue:
-            return
-        logger.info(f"Reintentando {len(self.event_queue)} eventos pendientes")
-        for event in self.event_queue[:]:
-            try:
-                await ws.send(event.json())
-                self.event_queue.remove(event)
-                logger.info(f"Evento pendiente enviado: {event}")
-            except ConnectionClosed:
-                logger.warning("Conexión cerrada. Forzando reconexión...")
-                raise  # IMPORTANTE → salir hacia run()
-            except WebSocketException as e:
-                logger.error(f"No se pudo enviar evento pendiente: {e}")
-                break  # Salir y reintentar luego
+
+        # Estado interno del agente
+        self._monitoring  = False   # True → monitorización activa
+        self._ws          = None    # WebSocket activo
+
+    # ── API pública ────────────────────────────────────────────────────────────
+
+    def add_event(self, event: Event):
+        """Añade un evento a la cola. Solo se enviará si la monitorización está activa."""
+        if self._monitoring:
+            self.event_queue.append(event)
+        else:
+            logger.debug(f"Evento ignorado (en espera): {event}")
+
+    # ── Bucle principal ────────────────────────────────────────────────────────
 
     async def run(self):
         while True:
             try:
                 async with connect(self.server_url) as ws:
-                    logger.info(f"Conectado al servidor WebSocket {self.server_url}")
+                    self._ws = ws
+                    logger.info(f"Conectado al servidor: {self.server_url}")
+                    logger.info("Esperando orden de inicio desde el dashboard...")
 
-                    # Loop para enviar eventos a medida que se agregan a la cola
-                    while True:
-                        if self.event_queue:
-                            await self.flush_queue(ws)
-                        await asyncio.sleep(1)
+                    # Lanzar lectura de comandos y envío de eventos en paralelo
+                    await asyncio.gather(
+                        self._receive_commands(ws),
+                        self._send_loop(ws),
+                    )
 
-            except Exception as e:
-                logger.warning(f"No se pudo conectar al servidor: {e}")
-                logger.info(f"Reintentando en {self.retry_delay} segundos...")
+            except (ConnectionClosed, WebSocketException, OSError) as e:
+                self._ws = None
+                self._monitoring = False
+                logger.warning(f"Conexión perdida: {e}")
+                logger.info(f"Reintentando en {self.retry_delay}s...")
                 await asyncio.sleep(self.retry_delay)
 
-    def add_event(self, event: Event):
-        """Agregar evento a la cola para enviar"""
-        self.event_queue.append(event)
+            except Exception as e:
+                self._ws = None
+                self._monitoring = False
+                logger.error(f"Error inesperado: {e}")
+                await asyncio.sleep(self.retry_delay)
 
+    # ── Recepción de comandos del servidor ────────────────────────────────────
 
-"""
-Este módulo implementa la comunicación del agente con el servidor central mediante WebSockets.
+    async def _receive_commands(self, ws):
+        async for raw in ws:
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                logger.warning(f"Mensaje no JSON recibido: {raw}")
+                continue
 
-Clases y Funciones Principales:
+            command = msg.get("command")
 
-- WSSender:
-    - Encargado de enviar los eventos generados por el agente al servidor en tiempo real.
-    - Mantiene una cola de eventos pendientes para asegurar que no se pierdan datos si el servidor
-      no está disponible en el momento.
-    - Gestiona la reconexión automática en caso de fallo de conexión, intentando reconectar
-      cada cierto intervalo (configurable).
+            if command == CMD_START:
+                if not self._monitoring:
+                    self._monitoring = True
+                    logger.info("▶ Monitorización INICIADA")
+                    await self._ack(ws, CMD_START)
+                    await self._on_start()
+                else:
+                    logger.debug("START recibido pero ya estaba monitorizando")
 
-- send_event(ws, event):
-    - Envía un evento individual al servidor a través de la conexión WebSocket.
-    - Si el envío falla, el evento se guarda en la cola para reintentos posteriores.
+            elif command == CMD_STOP:
+                if self._monitoring:
+                    self._monitoring = False
+                    logger.info("■ Monitorización DETENIDA")
+                    await self._ack(ws, CMD_STOP)
+                    await self._on_stop()
+                else:
+                    logger.debug("STOP recibido pero no estaba monitorizando")
 
-- flush_queue(ws):
-    - Revisa la cola de eventos pendientes y los envía al servidor.
-    - Permite asegurar que los eventos que no pudieron enviarse previamente se transmitan
-      cuando la conexión esté disponible.
+            else:
+                logger.warning(f"Comando desconocido: {command}")
 
-- run():
-    - Bucle principal que mantiene la conexión WebSocket con el servidor.
-    - Reintenta la conexión automáticamente en caso de fallo.
-    - Envía los eventos nuevos o pendientes al servidor de manera continua.
+    # ── Envío de eventos al servidor ──────────────────────────────────────────
 
-- add_event(event):
-    - Permite agregar eventos a la cola desde otras partes del agente.
-    - Los eventos agregados se enviarán inmediatamente si la conexión está activa, o se
-      guardarán para su envío posterior en caso de desconexión.
+    async def _send_loop(self, ws):
+        """Vacía la cola de eventos mientras haya conexión."""
+        while True:
+            if self._monitoring and self.event_queue:
+                await self._flush_queue(ws)
+            await asyncio.sleep(0.5)
 
-En resumen:
-Este fichero gestiona de forma confiable la transmisión de eventos desde cada equipo del aula
-hacia el servidor central, asegurando que los datos se envíen en tiempo real y que los eventos
-no se pierdan aunque haya problemas temporales de conectividad.
-"""
+    async def _flush_queue(self, ws):
+        pending = self.event_queue[:]
+        for event in pending:
+            try:
+                await ws.send(event.json())
+                self.event_queue.remove(event)
+                logger.info(f"Evento enviado: {event}")
+            except ConnectionClosed:
+                logger.warning("Conexión cerrada al enviar. Reconectando...")
+                raise
+            except WebSocketException as e:
+                logger.error(f"Error al enviar evento: {e}")
+                break
 
+    # ── Confirmación de comando ───────────────────────────────────────────────
+
+    async def _ack(self, ws, command: str):
+        try:
+            await ws.send(json.dumps({"ack": command}))
+        except Exception as e:
+            logger.error(f"No se pudo enviar ACK: {e}")
+
+    # ── Hooks de ciclo de vida ────────────────────────────────────────────────
+    # Sobreescribe estos métodos en una subclase para ejecutar lógica propia
+    # al iniciar o detener la monitorización.
+
+    async def _on_start(self):
+        """Se ejecuta cuando el agente recibe START. Sobreescribir si es necesario."""
+        pass
+
+    async def _on_stop(self):
+        """Se ejecuta cuando el agente recibe STOP. Sobreescribir si es necesario."""
+        pass
