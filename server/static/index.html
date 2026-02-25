@@ -3,23 +3,25 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Monitor de Agentes</title>
+<title>SèniaEye — Monitor de Agentes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:      #0b0e13;
-    --surface: #111620;
-    --border:  #1e2a3a;
-    --accent:  #00d4ff;
-    --accent2: #ff6b35;
-    --green:   #00ff88;
-    --red:     #ff3e5e;
-    --yellow:  #ffd166;
-    --text:    #c8d8e8;
-    --muted:   #4a6070;
-    --mono:    'Share Tech Mono', monospace;
-    --sans:    'Barlow', sans-serif;
+    --bg:       #0b0e13;
+    --surface:  #111620;
+    --border:   #1e2a3a;
+    --accent:   #00d4ff;
+    --accent2:  #ff6b35;
+    --green:    #00ff88;
+    --red:      #ff3e5e;
+    --yellow:   #ffd166;
+    --text:     #c8d8e8;
+    --muted:    #4a6070;
+    --crimson:  #8b1a1a;   /* color corporativo La Sénia */
+    --crimson2: #b52020;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Barlow', sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -27,6 +29,8 @@
     font-family: var(--sans); min-height: 100vh;
     display: flex; flex-direction: column; overflow: hidden;
   }
+
+  /* scanlines */
   body::before {
     content: ''; position: fixed; inset: 0;
     background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
@@ -37,18 +41,62 @@
   /* ── HEADER ── */
   header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px; height: 56px;
+    padding: 0 24px; height: 64px;
     background: var(--surface); border-bottom: 1px solid var(--border);
-    flex-shrink: 0; position: relative;
+    flex-shrink: 0; position: relative; gap: 20px;
   }
+  /* línea brillante inferior con color corporativo */
   header::after {
-    content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
-    height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.4;
+    content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson2), var(--accent), var(--crimson2), transparent);
+    opacity: 0.7;
   }
-  .logo { font-family: var(--mono); font-size: 15px; color: var(--accent); letter-spacing: 3px; }
-  .logo span { color: var(--muted); }
-  .header-stats { display: flex; gap: 28px; align-items: center; }
+
+  /* Logo corporativo */
+  .brand {
+    display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+  }
+  .brand img {
+    height: 42px; width: auto;
+    filter: brightness(0) invert(1) sepia(1) saturate(2) hue-rotate(320deg) brightness(0.85);
+    /* convierte el logo a tono rojizo-oscuro que combine con el tema */
+    opacity: 0.9;
+  }
+  .brand-divider {
+    width: 1px; height: 36px; background: var(--border);
+  }
+
+  /* Nombre de la app */
+  .app-name {
+    display: flex; flex-direction: column; line-height: 1.1;
+  }
+  .app-name .eye-title {
+    font-family: var(--mono); font-size: 20px; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+  .app-name .eye-title .senia-part { color: var(--crimson2); }
+  .app-name .eye-subtitle {
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; font-weight: 300;
+  }
+
+  /* Ojo SVG animado */
+  .eye-icon {
+    position: relative; width: 44px; height: 44px; flex-shrink: 0;
+  }
+  .eye-svg { width: 100%; height: 100%; }
+  .eye-outer { fill: none; stroke: var(--crimson2); stroke-width: 1.5; opacity: 0.7; }
+  .eye-iris  { fill: none; stroke: var(--accent); stroke-width: 1.5;
+               animation: irisGlow 3s ease-in-out infinite; }
+  .eye-pupil { fill: var(--accent); animation: pupilPulse 3s ease-in-out infinite; }
+  .eye-scan  { fill: none; stroke: var(--crimson2); stroke-width: 0.8; opacity: 0;
+               animation: scanFlash 4s ease-in-out infinite; }
+  @keyframes irisGlow  { 0%,100%{stroke:var(--accent);opacity:1} 50%{stroke:#fff;opacity:0.6} }
+  @keyframes pupilPulse{ 0%,100%{r:3;opacity:1} 50%{r:2;opacity:0.5} }
+  @keyframes scanFlash { 0%,80%,100%{opacity:0} 85%,95%{opacity:0.8} }
+
+  .header-stats { display: flex; gap: 24px; align-items: center; margin-left: auto; }
   .stat-pill { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
   .dot.green  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
@@ -69,7 +117,7 @@
     display: flex; flex-direction: column; overflow: hidden;
   }
   .aside-title {
-    padding: 14px 16px 10px; font-size: 10px; font-weight: 600;
+    padding: 12px 16px 10px; font-size: 10px; font-weight: 600;
     letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
     border-bottom: 1px solid var(--border);
   }
@@ -79,8 +127,8 @@
     border-left: 3px solid transparent; transition: all 0.15s;
     border-bottom: 1px solid rgba(30,42,58,0.4);
   }
-  .agent-item:hover { background: rgba(0,212,255,0.05); }
-  .agent-item.selected { border-left-color: var(--accent2); background: rgba(255,107,53,0.07); }
+  .agent-item:hover    { background: rgba(0,212,255,0.05); }
+  .agent-item.selected { border-left-color: var(--crimson2); background: rgba(139,26,26,0.1); }
 
   .agent-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
@@ -89,34 +137,27 @@
   .agent-id { font-family: var(--mono); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agent-evcount { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
-  /* Estado del agente */
-  .agent-status-bar {
-    display: flex; gap: 4px; margin-bottom: 6px;
-  }
+  .agent-status-bar { display: flex; gap: 4px; margin-bottom: 6px; }
   .status-badge {
     font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-    padding: 2px 7px; border-radius: 2px; border: 1px solid;
-    text-transform: uppercase;
+    padding: 2px 7px; border-radius: 2px; border: 1px solid; text-transform: uppercase;
   }
   .status-badge.waiting    { color: var(--yellow); border-color: rgba(255,209,102,0.3); background: rgba(255,209,102,0.08); }
   .status-badge.monitoring { color: var(--green);  border-color: rgba(0,255,136,0.3);   background: rgba(0,255,136,0.08); }
   .status-badge.offline    { color: var(--muted);  border-color: rgba(74,96,112,0.3);   background: transparent; }
 
-  /* Botones por agente */
   .agent-btns { display: flex; gap: 4px; }
   .agent-btn {
     flex: 1; padding: 4px 0; font-family: var(--mono); font-size: 10px;
     letter-spacing: 1px; border: 1px solid; border-radius: 2px;
-    cursor: pointer; transition: all 0.15s; background: transparent;
-    text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s; background: transparent; text-transform: uppercase;
   }
   .agent-btn.start { color: var(--green); border-color: rgba(0,255,136,0.3); }
-  .agent-btn.start:hover { background: rgba(0,255,136,0.12); }
+  .agent-btn.start:hover:not(:disabled) { background: rgba(0,255,136,0.12); }
   .agent-btn.stop  { color: var(--red);   border-color: rgba(255,62,94,0.3); }
-  .agent-btn.stop:hover  { background: rgba(255,62,94,0.12); }
+  .agent-btn.stop:hover:not(:disabled)  { background: rgba(255,62,94,0.12); }
   .agent-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* Panel inferior sidebar — broadcast */
   .broadcast-panel {
     border-top: 1px solid var(--border); padding: 12px;
     display: flex; flex-direction: column; gap: 6px;
@@ -128,8 +169,7 @@
   .broadcast-btn {
     width: 100%; padding: 7px; font-family: var(--mono); font-size: 11px;
     letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
-    cursor: pointer; transition: all 0.15s; border: 1px solid;
-    background: transparent;
+    cursor: pointer; transition: all 0.15s; border: 1px solid; background: transparent;
   }
   .broadcast-btn.all-start { color: var(--green); border-color: rgba(0,255,136,0.4); }
   .broadcast-btn.all-start:hover { background: rgba(0,255,136,0.1); }
@@ -141,8 +181,17 @@
     cursor: pointer; transition: all 0.15s; border: 1px solid var(--border);
     background: transparent; color: var(--muted);
   }
-  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .filter-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(255,107,53,0.08); }
+  .filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { border-color: var(--crimson2); color: var(--crimson2); background: rgba(139,26,26,0.1); }
+
+  /* IES info en el sidebar inferior */
+  .ies-footer {
+    border-top: 1px solid var(--border); padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ies-footer img { height: 28px; opacity: 0.5; filter: grayscale(1) brightness(2); }
+  .ies-footer-text { font-family: var(--mono); font-size: 9px; color: var(--muted); line-height: 1.5; }
+  .ies-footer-text strong { color: rgba(139,26,26,0.8); }
 
   /* ── MAIN ── */
   main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -162,7 +211,7 @@
     color: var(--muted); font-family: var(--mono); font-size: 11px;
     letter-spacing: 1px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
   }
-  .toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .toolbar-btn:hover        { border-color: var(--accent); color: var(--accent); }
   .toolbar-btn.danger:hover { border-color: var(--red); color: var(--red); }
   .event-count-badge { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
@@ -184,44 +233,49 @@
   td { padding: 8px 16px; vertical-align: middle; font-family: var(--mono); font-size: 12px; }
   td.col-ts    { color: var(--muted); white-space: nowrap; width: 160px; }
   td.col-agent { width: 140px; }
-  td.col-type  { width: 140px; }
+  td.col-type  { width: 150px; }
   td.col-data  { word-break: break-all; }
 
-  .agent-badge {
-    display: inline-block; padding: 2px 8px; border-radius: 2px;
-    font-size: 11px; border: 1px solid;
-  }
+  .agent-badge { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 11px; border: 1px solid; }
   .type-badge {
     display: inline-block; padding: 2px 8px; border-radius: 2px;
     font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
   }
-  .type-event              { background:rgba(0,212,255,0.1);   color:var(--accent);  border:1px solid rgba(0,212,255,0.2); }
-  .type-agent_connected    { background:rgba(0,255,136,0.1);   color:var(--green);   border:1px solid rgba(0,255,136,0.2); }
-  .type-agent_disconnected { background:rgba(255,62,94,0.1);   color:var(--red);     border:1px solid rgba(255,62,94,0.2); }
-  .type-agent_status       { background:rgba(255,209,102,0.1); color:var(--yellow);  border:1px solid rgba(255,209,102,0.2); }
-  .type-command_ack        { background:rgba(255,107,53,0.1);  color:var(--accent2); border:1px solid rgba(255,107,53,0.2); }
-  .type-broadcast_ack      { background:rgba(199,125,255,0.1); color:#c77dff;        border:1px solid rgba(199,125,255,0.2); }
+  .type-event              { background:rgba(0,212,255,0.1);   color:var(--accent);   border:1px solid rgba(0,212,255,0.2); }
+  .type-agent_connected    { background:rgba(0,255,136,0.1);   color:var(--green);    border:1px solid rgba(0,255,136,0.2); }
+  .type-agent_disconnected { background:rgba(255,62,94,0.1);   color:var(--red);      border:1px solid rgba(255,62,94,0.2); }
+  .type-agent_status       { background:rgba(255,209,102,0.1); color:var(--yellow);   border:1px solid rgba(255,209,102,0.2); }
+  .type-command_ack        { background:rgba(139,26,26,0.15);  color:var(--crimson2); border:1px solid rgba(139,26,26,0.3); }
+  .type-broadcast_ack      { background:rgba(199,125,255,0.1); color:#c77dff;         border:1px solid rgba(199,125,255,0.2); }
+
+  /* Watermark Big Brother */
+  .bb-watermark {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 4px;
+    color: rgba(139,26,26,0.12); text-transform: uppercase; pointer-events: none;
+    white-space: nowrap; z-index: 0;
+  }
 
   .empty-state {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; height: 100%; gap: 12px; color: var(--muted);
+    justify-content: center; height: 100%; gap: 16px; color: var(--muted);
   }
-  .empty-state .icon { font-size: 40px; opacity: 0.3; }
-  .empty-state p { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; }
+  /* Ojo grande en empty state */
+  .empty-eye { opacity: 0.15; animation: emptyEyePulse 4s ease-in-out infinite; }
+  @keyframes emptyEyePulse { 0%,100%{opacity:0.1;transform:scale(1)} 50%{opacity:0.2;transform:scale(1.04)} }
+  .empty-state p { font-family: var(--mono); font-size: 13px; letter-spacing: 3px; }
+  .empty-state small { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(139,26,26,0.5); }
 
-  /* scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-  /* toast */
   .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
   .toast {
     padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
     border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 12px;
-    border-radius: 2px; animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s both;
-    max-width: 340px;
+    border-radius: 2px; animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s both; max-width: 340px;
   }
   .toast.error   { border-left-color: var(--red); }
   .toast.success { border-left-color: var(--green); }
@@ -232,8 +286,44 @@
 </head>
 <body>
 
+<!-- ── HEADER ── -->
 <header>
-  <div class="logo">SYS<span>::</span>MONITOR <span style="font-size:10px;color:var(--muted)">v1.1</span></div>
+  <!-- Brand corporativo -->
+  <div class="brand">
+    <img src="/static/logo.png" alt="IES La Sénia">
+    <div class="brand-divider"></div>
+  </div>
+
+  <!-- Nombre app + ojo -->
+  <div style="display:flex;align-items:center;gap:12px">
+    <!-- Ojo SVG animado -->
+    <div class="eye-icon">
+      <svg class="eye-svg" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+        <!-- Arco superior/inferior (forma de ojo) -->
+        <path class="eye-outer" d="M4,22 Q22,4 40,22 Q22,40 4,22 Z"/>
+        <!-- Iris -->
+        <circle class="eye-iris" cx="22" cy="22" r="9"/>
+        <!-- Pupila -->
+        <circle class="eye-pupil" cx="22" cy="22" r="3"/>
+        <!-- Líneas de scan -->
+        <line class="eye-scan" x1="4" y1="22" x2="40" y2="22"/>
+        <!-- Círculo exterior decorativo -->
+        <circle fill="none" stroke="rgba(139,26,26,0.3)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+        <!-- Marcas de reloj -->
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="22" y1="2" x2="22" y2="6"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="22" y1="38" x2="22" y2="42"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="2" y1="22" x2="6" y2="22"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="38" y1="22" x2="42" y2="22"/>
+      </svg>
+    </div>
+
+    <div class="app-name">
+      <span class="eye-title"><span class="senia-part">Sènia</span>Eye</span>
+      <span class="eye-subtitle">Sistema de Vigilancia · IES La Sénia</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
   <div class="header-stats">
     <div class="stat-pill"><div class="dot green"></div><span id="agents-online">0</span>&nbsp;ONLINE</div>
     <div class="stat-pill"><div class="dot blue"></div><span id="total-events">0</span>&nbsp;EVENTOS</div>
@@ -242,22 +332,31 @@
 </header>
 
 <div class="body-wrap">
+  <!-- ── SIDEBAR ── -->
   <aside>
-    <div class="aside-title">Agentes</div>
+    <div class="aside-title">Agentes supervisados</div>
     <div class="agent-list" id="agent-list">
       <div style="padding:20px 16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Sin agentes</div>
     </div>
     <div class="broadcast-panel">
-      <div class="broadcast-title">Broadcast — todos</div>
-      <button class="broadcast-btn all-start" onclick="broadcastCommand('START_MONITORING')">▶ START ALL</button>
-      <button class="broadcast-btn all-stop"  onclick="broadcastCommand('STOP_MONITORING')">■ STOP ALL</button>
+      <div class="broadcast-title">◈ Control global</div>
+      <button class="broadcast-btn all-start" onclick="broadcastCommand('START_MONITORING')">▶ INICIAR TODOS</button>
+      <button class="broadcast-btn all-stop"  onclick="broadcastCommand('STOP_MONITORING')">■ DETENER TODOS</button>
       <button class="filter-btn" id="btn-filter" onclick="toggleFilter()">FILTRAR SELECCIONADO</button>
+    </div>
+    <div class="ies-footer">
+      <img src="/static/logo.png" alt="IES La Sénia">
+      <div class="ies-footer-text">
+        <strong>IES La Sénia</strong><br>
+        Paiporta · SèniaEye v1.1
+      </div>
     </div>
   </aside>
 
+  <!-- ── MAIN ── -->
   <main>
     <div class="toolbar">
-      <input class="search-box" id="search-input" type="text" placeholder="Buscar: agente, tipo, datos..." oninput="applyFilters()">
+      <input class="search-box" id="search-input" type="text" placeholder="Buscar: agente, tipo, datos...">
       <button class="toolbar-btn" onclick="scrollToBottom()">↓ FIN</button>
       <button class="toolbar-btn" id="btn-autoscroll" onclick="toggleAutoScroll()">AUTO: ON</button>
       <button class="toolbar-btn danger" onclick="clearLog()">LIMPIAR</button>
@@ -265,8 +364,15 @@
     </div>
     <div class="table-wrap" id="table-wrap">
       <div class="empty-state" id="empty-state">
-        <div class="icon">◈</div>
-        <p>ESPERANDO EVENTOS...</p>
+        <!-- Ojo grande decorativo -->
+        <svg class="empty-eye" width="120" height="120" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+          <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
+          <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
+          <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
+          <circle fill="none" stroke="rgba(139,26,26,0.5)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+        </svg>
+        <p>ESPERANDO EVENTOS</p>
+        <small>SèniaEye · Todo está siendo observado</small>
       </div>
       <table id="log-table" style="display:none">
         <thead>
@@ -283,19 +389,19 @@
   </main>
 </div>
 
+<!-- Watermark Big Brother -->
+<div class="bb-watermark">◈ &nbsp; Big Brother is watching &nbsp; · &nbsp; SèniaEye &nbsp; · &nbsp; IES La Sénia Paiporta &nbsp; ◈</div>
+
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-// ── Constantes ──────────────────────────────────────────────────────────────
 const CMD_START = "START_MONITORING";
 const CMD_STOP  = "STOP_MONITORING";
 const COLORS = ['#00d4ff','#ff6b35','#00ff88','#ffd166','#c77dff','#ff9f1c','#06d6a0','#ef476f','#118ab2','#f4a261'];
 let colorIdx = 0;
 
-// ── Estado ──────────────────────────────────────────────────────────────────
 const state = {
   ws: null,
-  // agent_id → { online, status:"waiting"|"monitoring", count, color }
   agents: {},
   allEvents: [],
   filteredEvents: [],
@@ -305,11 +411,10 @@ const state = {
   autoScroll: true,
 };
 
-// ── WebSocket ────────────────────────────────────────────────────────────────
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   state.ws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
-  state.ws.onopen    = () => { setWsStatus('connected','CONECTADO'); toast('Dashboard conectado','success'); };
+  state.ws.onopen    = () => { setWsStatus('connected','CONECTADO'); toast('SèniaEye conectado al servidor','success'); };
   state.ws.onclose   = () => { setWsStatus('disconnected','DESCONECTADO'); toast('Reconectando...','error'); setTimeout(connect,3000); };
   state.ws.onerror   = () => setWsStatus('disconnected','ERROR');
   state.ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
@@ -317,7 +422,6 @@ function connect() {
 
 function handleMessage(msg) {
   if (msg.type === 'snapshot') {
-    // agents es ahora { agent_id: "waiting"|"monitoring" }
     Object.entries(msg.agents).forEach(([id, status]) => ensureAgent(id, true, status));
     msg.events.forEach(ev => addEvent(ev, false));
     applyFilters(); renderAgentList(); return;
@@ -342,18 +446,16 @@ function handleMessage(msg) {
   }
   if (msg.type === 'command_ack') {
     addEvent(msg, true);
-    const ok = msg.success;
-    const label = msg.command === CMD_START ? 'START' : 'STOP';
-    toast(`${label} → ${msg.agent_id}: ${ok ? 'enviado' : 'agente no disponible'}`, ok ? 'success' : 'error'); return;
+    const label = msg.command === CMD_START ? '▶ START' : '■ STOP';
+    toast(`${label} → ${msg.agent_id}: ${msg.success ? 'enviado' : 'no disponible'}`, msg.success ? 'success' : 'error'); return;
   }
   if (msg.type === 'broadcast_ack') {
     addEvent(msg, true);
-    const label = msg.command === CMD_START ? 'START ALL' : 'STOP ALL';
+    const label = msg.command === CMD_START ? '▶ INICIAR TODOS' : '■ DETENER TODOS';
     toast(`${label}: ${msg.count} agentes alcanzados`, 'success'); return;
   }
 }
 
-// ── Agentes ──────────────────────────────────────────────────────────────────
 function ensureAgent(id, online, status) {
   if (!state.agents[id]) {
     state.agents[id] = { online, status: status || 'waiting', count: 0, color: COLORS[colorIdx++ % COLORS.length] };
@@ -367,7 +469,7 @@ function renderAgentList() {
   const el = document.getElementById('agent-list');
   const ids = Object.keys(state.agents);
   if (!ids.length) {
-    el.innerHTML = '<div style="padding:20px 16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Sin agentes</div>';
+    el.innerHTML = '<div style="padding:20px 16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Sin agentes conectados</div>';
     return;
   }
   el.innerHTML = ids.map(id => {
@@ -387,10 +489,10 @@ function renderAgentList() {
           <span class="status-badge ${statusLabel}">${statusLabel}</span>
         </div>
         <div class="agent-btns">
-          <button class="agent-btn start" ${canStart ? '' : 'disabled'}
-            onclick="event.stopPropagation(); sendCommand('${id}', '${CMD_START}')">▶ START</button>
-          <button class="agent-btn stop"  ${canStop  ? '' : 'disabled'}
-            onclick="event.stopPropagation(); sendCommand('${id}', '${CMD_STOP}')">■ STOP</button>
+          <button class="agent-btn start" ${canStart?'':'disabled'}
+            onclick="event.stopPropagation();sendCommand('${id}','${CMD_START}')">▶ START</button>
+          <button class="agent-btn stop" ${canStop?'':'disabled'}
+            onclick="event.stopPropagation();sendCommand('${id}','${CMD_STOP}')">■ STOP</button>
         </div>
       </div>`;
   }).join('');
@@ -400,8 +502,7 @@ function renderAgentList() {
 function selectAgent(id) {
   state.selectedAgent = state.selectedAgent === id ? null : id;
   if (!state.selectedAgent) { state.filterSelected = false; document.getElementById('btn-filter').classList.remove('active'); }
-  renderAgentList();
-  applyFilters();
+  renderAgentList(); applyFilters();
 }
 
 function toggleFilter() {
@@ -411,7 +512,6 @@ function toggleFilter() {
   applyFilters();
 }
 
-// ── Comandos ──────────────────────────────────────────────────────────────────
 function sendCommand(agentId, command) {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { toast('Sin conexión con el servidor', 'error'); return; }
   state.ws.send(JSON.stringify({ action: 'send_command', agent_id: agentId, command }));
@@ -424,27 +524,19 @@ function broadcastCommand(command) {
   state.ws.send(JSON.stringify({ action: 'broadcast_command', command }));
 }
 
-// ── Eventos ──────────────────────────────────────────────────────────────────
 function addEvent(ev, live) {
   if (state.agents[ev.agent_id]) state.agents[ev.agent_id].count++;
   state.allEvents.push(ev);
   if (state.allEvents.length > 2000) state.allEvents.splice(0, 200);
-
   if (live) {
-    if (eventPassesFilter(ev)) {
-      state.filteredEvents.push(ev);
-      appendRow(ev, true);
-      updateCountBadge();
-    }
+    if (eventPassesFilter(ev)) { state.filteredEvents.push(ev); appendRow(ev, true); updateCountBadge(); }
     if (state.autoScroll) scrollToBottom();
   }
 }
 
 function eventPassesFilter(ev) {
   if (state.filterSelected && state.selectedAgent && ev.agent_id !== state.selectedAgent) return false;
-  if (state.searchQuery) {
-    if (!JSON.stringify(ev).toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
-  }
+  if (state.searchQuery && !JSON.stringify(ev).toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
   return true;
 }
 
@@ -458,12 +550,8 @@ function rebuildTable() {
   tbody.innerHTML = '';
   const empty = document.getElementById('empty-state');
   const table = document.getElementById('log-table');
-  if (!state.filteredEvents.length) {
-    empty.style.display = 'flex'; table.style.display = 'none';
-  } else {
-    empty.style.display = 'none'; table.style.display = '';
-    state.filteredEvents.forEach(ev => appendRow(ev, false));
-  }
+  if (!state.filteredEvents.length) { empty.style.display='flex'; table.style.display='none'; }
+  else { empty.style.display='none'; table.style.display=''; state.filteredEvents.forEach(ev => appendRow(ev, false)); }
   updateCountBadge();
   if (state.autoScroll) scrollToBottom();
 }
@@ -474,35 +562,23 @@ function appendRow(ev, animate) {
   const tbody = document.getElementById('log-body');
   const tr = document.createElement('tr');
   const color = state.agents[ev.agent_id]?.color || '#888';
-
   let dataStr = '';
-  if (ev.type === 'event')         dataStr = formatData(ev.data);
-  else if (ev.type === 'agent_status') dataStr = `estado → ${ev.status}`;
-  else if (ev.type === 'command_ack')  dataStr = `cmd:${ev.command} success:${ev.success}`;
-  else if (ev.type === 'broadcast_ack')dataStr = `cmd:${ev.command} alcanzados:${ev.count} [${(ev.reached||[]).join(', ')}]`;
-
+  if (ev.type === 'event')           dataStr = formatData(ev.data);
+  else if (ev.type === 'agent_status')    dataStr = `estado → ${ev.status}`;
+  else if (ev.type === 'command_ack')     dataStr = `cmd: ${ev.command}  |  éxito: ${ev.success}`;
+  else if (ev.type === 'broadcast_ack')   dataStr = `cmd: ${ev.command}  |  alcanzados: ${ev.count}  [${(ev.reached||[]).join(', ')}]`;
   tr.innerHTML = `
-    <td class="col-ts">${ev.timestamp || '—'}</td>
-    <td class="col-agent"><span class="agent-badge" style="color:${color};border-color:${color}30;background:${color}10">${ev.agent_id || '—'}</span></td>
+    <td class="col-ts">${ev.timestamp||'—'}</td>
+    <td class="col-agent"><span class="agent-badge" style="color:${color};border-color:${color}30;background:${color}10">${ev.agent_id||'—'}</span></td>
     <td class="col-type"><span class="type-badge type-${ev.type}">${ev.type}</span></td>
     <td class="col-data">${escHtml(dataStr)}</td>`;
   tbody.appendChild(tr);
-  if (animate) { tr.style.animation = 'rowIn 0.2s ease both'; }
 }
 
-function formatData(data) {
-  if (!data) return '—';
-  return typeof data === 'string' ? data : JSON.stringify(data);
-}
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function formatData(d) { if(!d) return '—'; return typeof d==='string'?d:JSON.stringify(d); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── UI ────────────────────────────────────────────────────────────────────────
-function setWsStatus(cls, text) {
-  const el = document.getElementById('ws-status');
-  el.className = `ws-status ${cls}`; el.textContent = text;
-}
+function setWsStatus(cls, text) { const e=document.getElementById('ws-status'); e.className=`ws-status ${cls}`; e.textContent=text; }
 function updateStats() {
   document.getElementById('agents-online').textContent = Object.values(state.agents).filter(a=>a.online).length;
   document.getElementById('total-events').textContent  = state.allEvents.length;
@@ -511,24 +587,14 @@ function updateCountBadge() {
   document.getElementById('event-count-badge').textContent = `${state.filteredEvents.length} / ${state.allEvents.length}`;
   updateStats();
 }
-function scrollToBottom() { const w = document.getElementById('table-wrap'); w.scrollTop = w.scrollHeight; }
-function toggleAutoScroll() {
-  state.autoScroll = !state.autoScroll;
-  document.getElementById('btn-autoscroll').textContent = `AUTO: ${state.autoScroll ? 'ON' : 'OFF'}`;
-}
+function scrollToBottom() { const w=document.getElementById('table-wrap'); w.scrollTop=w.scrollHeight; }
+function toggleAutoScroll() { state.autoScroll=!state.autoScroll; document.getElementById('btn-autoscroll').textContent=`AUTO: ${state.autoScroll?'ON':'OFF'}`; }
 function clearLog() {
-  state.allEvents = []; state.filteredEvents = [];
-  Object.values(state.agents).forEach(a => a.count = 0);
+  state.allEvents=[]; state.filteredEvents=[];
+  Object.values(state.agents).forEach(a=>a.count=0);
   rebuildTable(); renderAgentList(); updateCountBadge();
 }
-document.getElementById('search-input').addEventListener('input', e => { state.searchQuery = e.target.value; applyFilters(); });
-
-function toast(msg, type='') {
-  const c = document.getElementById('toast-container');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`; t.textContent = msg;
-  c.appendChild(t); setTimeout(() => t.remove(), 3200);
-}
+document.getElementById('search-input').addEventListener('input', e => { state.searchQuery=e.target.value; applyFilters(); });
 
 connect();
 </script>
