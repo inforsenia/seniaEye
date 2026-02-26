@@ -89,3 +89,5 @@ env.bak/
 Thumbs.db
 
 .direnv
+
+*.log
