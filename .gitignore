@@ -87,3 +87,5 @@ env.bak/
 # OS files
 .DS_Store
 Thumbs.db
+
+.direnv
