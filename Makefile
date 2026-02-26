@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install server agent run venv
+.PHONY: install server agent run venv help
 
 venv:
 	$(PYTHON) -m venv venv
@@ -13,3 +13,12 @@ server:
 
 agent:
 	$(PYTHON) -m agent.main
+
+help:
+	@echo "Available targets:"
+	@echo "  make venv      # create virtual environment"
+	@echo "  make install   # install dependencies (creates venv)"
+	@echo "  make server    # start the FastAPI server"
+	@echo "  make agent     # run monitoring agent"
+	@echo "  make run       # start server (agent separately)"
+	@echo "  make help      # show this message"
