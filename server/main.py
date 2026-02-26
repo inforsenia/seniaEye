@@ -1,13 +1,22 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import json
 import asyncio
 from datetime import datetime
 from pathlib import Path
 import os
 
+from server.database import (
+    init_db, open_session, close_session, save_event,
+    list_sessions, get_session, get_session_events,
+    delete_session, delete_all_sessions
+)
+
 app = FastAPI()
+
+# Inicializar DB al arrancar
+init_db()
 
 # ── Comandos ───────────────────────────────────────────────────────────────────
 CMD_START = "START_MONITORING"
@@ -17,7 +26,7 @@ CMD_STOP  = "STOP_MONITORING"
 
 class ConnectionManager:
     def __init__(self):
-        # agent_id → { "ws": WebSocket, "status": "waiting"|"monitoring" }
+        # agent_id → { "ws", "status", "session_id" }
         self.agents: dict[str, dict] = {}
         self.dashboards: list[WebSocket] = []
         self.event_log: list[dict] = []
@@ -25,14 +34,18 @@ class ConnectionManager:
     # ── Agentes ────────────────────────────────────────────────────────────────
 
     async def connect_agent(self, ws: WebSocket, agent_id: str):
-        self.agents[agent_id] = {"ws": ws, "status": "waiting"}
+        session_id = open_session(agent_id)
+        self.agents[agent_id] = {"ws": ws, "status": "waiting", "session_id": session_id}
         ev = {"type": "agent_connected", "agent_id": agent_id,
               "status": "waiting", "timestamp": _now()}
         self._append_log(ev)
+        save_event(session_id, agent_id, "agent_connected", ev["timestamp"], None)
         await self._broadcast_dashboard(ev)
 
     def disconnect_agent(self, agent_id: str):
-        self.agents.pop(agent_id, None)
+        entry = self.agents.pop(agent_id, None)
+        if entry:
+            close_session(entry["session_id"])
         ev = {"type": "agent_disconnected", "agent_id": agent_id, "timestamp": _now()}
         self._append_log(ev)
         asyncio.create_task(self._broadcast_dashboard(ev))
@@ -43,7 +56,10 @@ class ConnectionManager:
         except json.JSONDecodeError:
             payload = {"raw": raw}
 
-        # El agente confirma su estado con {"ack": "START_MONITORING"|"STOP_MONITORING"}
+        entry = self.agents.get(agent_id, {})
+        session_id = entry.get("session_id")
+
+        # ACK de estado
         if "ack" in payload:
             new_status = "monitoring" if payload["ack"] == CMD_START else "waiting"
             if agent_id in self.agents:
@@ -51,13 +67,18 @@ class ConnectionManager:
             ev = {"type": "agent_status", "agent_id": agent_id,
                   "status": new_status, "timestamp": _now()}
             self._append_log(ev)
+            if session_id:
+                save_event(session_id, agent_id, "agent_status", ev["timestamp"],
+                           {"status": new_status})
             await self._broadcast_dashboard(ev)
             return
 
-        # Evento de monitorización normal
-        record = {"type": "event", "agent_id": agent_id,
-                  "timestamp": _now(), "data": payload}
+        # Evento de monitorización
+        ts = _now()
+        record = {"type": "event", "agent_id": agent_id, "timestamp": ts, "data": payload}
         self._append_log(record)
+        if session_id:
+            save_event(session_id, agent_id, "event", ts, payload)
         await self._broadcast_dashboard(record)
 
     # ── Comandos hacia agentes ─────────────────────────────────────────────────
@@ -70,8 +91,7 @@ class ConnectionManager:
         return True
 
     async def broadcast_command(self, command: str) -> list[str]:
-        reached = []
-        dead = []
+        reached, dead = [], []
         for agent_id, entry in self.agents.items():
             try:
                 await entry["ws"].send_text(json.dumps({"command": command}))
@@ -88,7 +108,7 @@ class ConnectionManager:
         self.dashboards.append(ws)
         snapshot = {
             "type": "snapshot",
-            "agents": {aid: entry["status"] for aid, entry in self.agents.items()},
+            "agents": {aid: e["status"] for aid, e in self.agents.items()},
             "events": self.event_log[-500:]
         }
         await ws.send_text(json.dumps(snapshot))
@@ -156,22 +176,16 @@ async def websocket_dashboard(websocket: WebSocket):
                 command  = msg["command"]
                 success  = await manager.send_command(agent_id, command)
                 await websocket.send_text(json.dumps({
-                    "type": "command_ack",
-                    "agent_id": agent_id,
-                    "command": command,
-                    "success": success,
-                    "timestamp": _now()
+                    "type": "command_ack", "agent_id": agent_id,
+                    "command": command, "success": success, "timestamp": _now()
                 }))
 
             elif action == "broadcast_command":
                 command = msg["command"]
                 reached = await manager.broadcast_command(command)
                 await websocket.send_text(json.dumps({
-                    "type": "broadcast_ack",
-                    "command": command,
-                    "reached": reached,
-                    "count": len(reached),
-                    "timestamp": _now()
+                    "type": "broadcast_ack", "command": command,
+                    "reached": reached, "count": len(reached), "timestamp": _now()
                 }))
 
     except WebSocketDisconnect:
@@ -179,7 +193,34 @@ async def websocket_dashboard(websocket: WebSocket):
         manager.disconnect_dashboard(websocket)
 
 
-# ── HTTP: Servir el dashboard ──────────────────────────────────────────────────
+# ── API REST: Sesiones ─────────────────────────────────────────────────────────
+
+@app.get("/api/sessions")
+async def api_list_sessions():
+    return JSONResponse(list_sessions())
+
+@app.get("/api/sessions/{session_id}")
+async def api_get_session(session_id: int):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    events = get_session_events(session_id)
+    return JSONResponse({"session": session, "events": events})
+
+@app.delete("/api/sessions/{session_id}")
+async def api_delete_session(session_id: int):
+    deleted = delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    return JSONResponse({"ok": True, "deleted_id": session_id})
+
+@app.delete("/api/sessions")
+async def api_delete_all_sessions():
+    count = delete_all_sessions()
+    return JSONResponse({"ok": True, "deleted_count": count})
+
+
+# ── HTTP: Páginas ──────────────────────────────────────────────────────────────
 
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -187,3 +228,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 @app.get("/")
 async def serve_dashboard():
     return FileResponse(BASE_DIR / "static" / "index.html")
+
+@app.get("/sessions")
+async def serve_sessions():
+    return FileResponse(BASE_DIR / "static" / "sessions.html")

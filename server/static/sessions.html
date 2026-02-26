@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SèniaEye — Sesiones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0b0e13;
+    --surface: #111620;
+    --border:  #1e2a3a;
+    --accent:  #00d4ff;
+    --green:   #00ff88;
+    --red:     #ff3e5e;
+    --yellow:  #ffd166;
+    --text:    #c8d8e8;
+    --muted:   #4a6070;
+    --crimson: #8b1a1a;
+    --crimson2:#b52020;
+    --mono:    'Share Tech Mono', monospace;
+    --sans:    'Barlow', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); min-height: 100vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  header, .layout, .toast-container { position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; position: relative;
+  }
+  header::after {
+    content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg,transparent,var(--crimson2),var(--accent),var(--crimson2),transparent);
+    opacity: 0.7;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img {
+    height: 42px;
+    filter: brightness(0) invert(1) sepia(1) saturate(2) hue-rotate(320deg) brightness(0.85);
+    opacity: 0.9;
+  }
+  .brand-divider { width: 1px; height: 36px; background: var(--border); }
+  .app-name { display: flex; flex-direction: column; line-height: 1.1; }
+  .eye-title { font-family: var(--mono); font-size: 20px; letter-spacing: 3px; color: var(--accent); text-shadow: 0 0 20px rgba(0,212,255,0.4); }
+  .eye-title .senia-part { color: var(--crimson2); }
+  .eye-subtitle { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; font-weight: 300; }
+  .page-label {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 3px;
+    color: var(--crimson2); text-transform: uppercase;
+    border-left: 1px solid var(--border); padding-left: 20px; margin-left: 6px;
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .back-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 5px 14px; border-radius: 2px; border: 1px solid var(--border);
+    color: var(--muted); text-decoration: none; transition: all 0.15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .session-count-badge {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 64px); }
+
+  /* ── LISTA DE SESIONES ── */
+  .sessions-panel {
+    width: 320px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .panel-search {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 2px; padding: 5px 10px; color: var(--text);
+    font-family: var(--mono); font-size: 11px; outline: none; transition: border-color 0.2s;
+  }
+  .panel-search::placeholder { color: var(--muted); }
+  .panel-search:focus { border-color: var(--accent); }
+  .del-all-btn {
+    padding: 5px 10px; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
+  }
+  .del-all-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .sessions-list { flex: 1; overflow-y: auto; }
+  .session-item {
+    padding: 12px 14px; cursor: pointer;
+    border-left: 3px solid transparent; border-bottom: 1px solid rgba(30,42,58,0.5);
+    transition: all 0.15s; position: relative;
+  }
+  .session-item:hover    { background: rgba(0,212,255,0.04); }
+  .session-item.active   { border-left-color: var(--crimson2); background: rgba(139,26,26,0.08); }
+  .session-item.open-session { border-left-color: var(--green); }
+
+  .si-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .si-agent {
+    font-family: var(--mono); font-size: 12px; flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .si-id {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    background: var(--bg); padding: 1px 5px; border-radius: 2px;
+  }
+  .si-meta { display: flex; gap: 12px; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+  .si-footer { display: flex; align-items: center; justify-content: space-between; }
+  .si-evcount {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 2px;
+    background: rgba(0,212,255,0.08); color: var(--accent); border: 1px solid rgba(0,212,255,0.15);
+  }
+  .si-status-open   { font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 1px; }
+  .si-duration {
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 7px; border-radius: 2px;
+    background: rgba(74,96,112,0.15); color: var(--muted); border: 1px solid rgba(74,96,112,0.2);
+  }
+  .si-del-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    cursor: pointer; border-radius: 2px; padding: 2px 6px;
+    opacity: 0; transition: all 0.15s;
+  }
+  .session-item:hover .si-del-btn { opacity: 1; }
+  .si-del-btn:hover { border-color: var(--red); color: var(--red); background: rgba(255,62,94,0.08); }
+
+  .empty-list {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 12px; color: var(--muted);
+  }
+  .empty-list p { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; }
+
+  /* ── DETALLE ── */
+  .detail-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .detail-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0; gap: 20px;
+  }
+  .detail-title {
+    font-family: var(--mono); font-size: 14px; color: var(--accent);
+    letter-spacing: 2px; margin-bottom: 6px;
+  }
+  .detail-title .agent-hl { color: var(--crimson2); }
+  .detail-meta { display: flex; flex-wrap: wrap; gap: 16px; }
+  .meta-chip {
+    display: flex; gap: 6px; align-items: center;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .meta-chip span { color: var(--text); }
+  .detail-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; gap: 16px; color: var(--muted);
+  }
+  .detail-placeholder .big-icon { font-size: 48px; opacity: 0.15; }
+  .detail-placeholder p { font-family: var(--mono); font-size: 12px; letter-spacing: 3px; }
+
+  /* Tabla de eventos del detalle */
+  .events-toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .events-search {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 2px; padding: 5px 10px; color: var(--text);
+    font-family: var(--mono); font-size: 11px; outline: none; transition: border-color 0.2s;
+  }
+  .events-search::placeholder { color: var(--muted); }
+  .events-search:focus { border-color: var(--accent); }
+  .ev-count { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .type-filter-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .type-filter-btn {
+    padding: 3px 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    border: 1px solid var(--border); border-radius: 2px; cursor: pointer;
+    background: transparent; color: var(--muted); transition: all 0.15s;
+  }
+  .type-filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+  .type-filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
+
+  .events-wrap { flex: 1; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { position: sticky; top: 0; z-index: 10; background: var(--bg); }
+  th {
+    padding: 9px 14px; text-align: left; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid rgba(30,42,58,0.4); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(0,212,255,0.03); }
+  td { padding: 7px 14px; font-family: var(--mono); font-size: 11px; vertical-align: middle; }
+  td.col-ts   { color: var(--muted); white-space: nowrap; width: 160px; }
+  td.col-type { width: 130px; }
+  td.col-data { word-break: break-all; color: rgba(200,216,232,0.75); }
+
+  .type-badge {
+    display: inline-block; padding: 2px 7px; border-radius: 2px;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border: 1px solid;
+  }
+  .type-event           { background:rgba(0,212,255,0.1);   color:var(--accent);   border-color:rgba(0,212,255,0.2); }
+  .type-agent_connected { background:rgba(0,255,136,0.1);   color:var(--green);    border-color:rgba(0,255,136,0.2); }
+  .type-agent_disconnected{background:rgba(255,62,94,0.1);  color:var(--red);      border-color:rgba(255,62,94,0.2); }
+  .type-agent_status    { background:rgba(255,209,102,0.1); color:var(--yellow);   border-color:rgba(255,209,102,0.2); }
+
+  /* ── CONFIRM MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 2px solid var(--crimson2); border-radius: 3px;
+    padding: 28px 32px; min-width: 320px; max-width: 440px;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:none} }
+  .modal h3 { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; color: var(--crimson2); margin-bottom: 10px; }
+  .modal p  { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-btn {
+    padding: 7px 20px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    border-radius: 2px; cursor: pointer; transition: all 0.15s; border: 1px solid;
+    background: transparent; text-transform: uppercase;
+  }
+  .modal-btn.cancel { border-color: var(--border); color: var(--muted); }
+  .modal-btn.cancel:hover { border-color: var(--accent); color: var(--accent); }
+  .modal-btn.confirm { border-color: rgba(255,62,94,0.5); color: var(--red); }
+  .modal-btn.confirm:hover { background: rgba(255,62,94,0.1); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* toast */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast {
+    padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 12px;
+    border-radius: 2px; animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s both;
+  }
+  .toast.error   { border-left-color: var(--red); }
+  .toast.success { border-left-color: var(--green); }
+  @keyframes toastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  @keyframes toastOut { to{opacity:0;transform:translateY(10px)} }
+
+  /* loading spinner */
+  .spinner {
+    display: inline-block; width: 16px; height: 16px; margin: auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="brand">
+    <img src="/static/logo.png" alt="IES La Sénia">
+    <div class="brand-divider"></div>
+    <div class="app-name">
+      <span class="eye-title"><span class="senia-part">Sènia</span>Eye</span>
+      <span class="eye-subtitle">Sistema de Vigilancia · IES La Sénia</span>
+    </div>
+    <span class="page-label">Sesiones</span>
+  </div>
+  <div class="header-right">
+    <span class="session-count-badge" id="session-count">— sesiones</span>
+    <a href="/" class="back-btn">← VOLVER AL MONITOR</a>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── LISTA ── -->
+  <div class="sessions-panel">
+    <div class="panel-toolbar">
+      <input class="panel-search" id="search-sessions" type="text" placeholder="Filtrar por agente..." oninput="filterSessions()">
+      <button class="del-all-btn" onclick="confirmDeleteAll()">✕ BORRAR TODO</button>
+    </div>
+    <div class="sessions-list" id="sessions-list">
+      <div class="empty-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ── DETALLE ── -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-placeholder">
+      <div class="big-icon">◫</div>
+      <p>SELECCIONA UNA SESIÓN</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL CONFIRMACIÓN ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">CONFIRMAR ELIMINACIÓN</h3>
+    <p id="modal-body">¿Seguro que quieres eliminar esta sesión? Esta acción no se puede deshacer.</p>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-btn confirm" id="modal-confirm-btn" onclick="executeDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Estado ──────────────────────────────────────────────────────────────────
+let allSessions     = [];
+let filteredSessions = [];
+let selectedSessionId = null;
+let currentDetailEvents = [];
+let filteredDetailEvents = [];
+let deleteTarget = null;   // { type: 'one'|'all', id? }
+let activeTypeFilter = null;
+
+// ── Carga inicial ─────────────────────────────────────────────────────────────
+async function loadSessions() {
+  try {
+    const res = await fetch('/api/sessions');
+    allSessions = await res.json();
+    filteredSessions = [...allSessions];
+    renderSessionList();
+    updateSessionCount();
+  } catch(e) {
+    document.getElementById('sessions-list').innerHTML =
+      '<div class="empty-list"><p>ERROR AL CARGAR</p></div>';
+  }
+}
+
+// ── Lista ─────────────────────────────────────────────────────────────────────
+function filterSessions() {
+  const q = document.getElementById('search-sessions').value.toLowerCase();
+  filteredSessions = q ? allSessions.filter(s => s.agent_id.toLowerCase().includes(q)) : [...allSessions];
+  renderSessionList();
+}
+
+function updateSessionCount() {
+  document.getElementById('session-count').textContent =
+    `${allSessions.length} sesión${allSessions.length !== 1 ? 'es' : ''}`;
+}
+
+function renderSessionList() {
+  const el = document.getElementById('sessions-list');
+  if (!filteredSessions.length) {
+    el.innerHTML = '<div class="empty-list"><p>SIN SESIONES</p></div>';
+    return;
+  }
+  el.innerHTML = filteredSessions.map(s => {
+    const isOpen    = !s.ended_at;
+    const isActive  = s.id === selectedSessionId;
+    const duration  = s.duration_s != null ? formatDuration(s.duration_s) : (isOpen ? 'EN CURSO' : '—');
+    const dateStr   = s.started_at ? s.started_at.split(' ')[0] : '—';
+    const timeStr   = s.started_at ? s.started_at.split(' ')[1] : '';
+    return `
+      <div class="session-item ${isActive ? 'active' : ''} ${isOpen ? 'open-session' : ''}"
+           onclick="loadDetail(${s.id})">
+        <div class="si-header">
+          <span class="si-agent">${escHtml(s.agent_id)}</span>
+          <span class="si-id">#${s.id}</span>
+        </div>
+        <div class="si-meta">
+          <span>📅 ${dateStr}</span>
+          <span>🕐 ${timeStr}</span>
+        </div>
+        <div class="si-footer">
+          <span class="si-evcount">${s.event_count} eventos</span>
+          ${isOpen
+            ? '<span class="si-status-open">● ACTIVA</span>'
+            : `<span class="si-duration">⏱ ${duration}</span>`}
+        </div>
+        <button class="si-del-btn" onclick="event.stopPropagation(); confirmDeleteOne(${s.id}, '${escHtml(s.agent_id)}')">✕</button>
+      </div>`;
+  }).join('');
+}
+
+// ── Detalle ───────────────────────────────────────────────────────────────────
+async function loadDetail(sessionId) {
+  selectedSessionId = sessionId;
+  activeTypeFilter  = null;
+  renderSessionList();
+
+  const panel = document.getElementById('detail-panel');
+  panel.innerHTML = '<div class="detail-placeholder"><div class="spinner"></div></div>';
+
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (!res.ok) throw new Error('not found');
+    const { session, events } = await res.json();
+
+    currentDetailEvents  = events;
+    filteredDetailEvents = [...events];
+
+    const isOpen     = !session.ended_at;
+    const duration   = session.duration_s != null ? formatDuration(session.duration_s) : (isOpen ? 'EN CURSO' : '—');
+    const types      = [...new Set(events.map(e => e.event_type))];
+
+    panel.innerHTML = `
+      <div class="detail-header">
+        <div>
+          <div class="detail-title">Sesión #${session.id} — <span class="agent-hl">${escHtml(session.agent_id)}</span></div>
+          <div class="detail-meta">
+            <div class="meta-chip">Inicio <span>${session.started_at}</span></div>
+            <div class="meta-chip">Fin    <span>${session.ended_at || '—'}</span></div>
+            <div class="meta-chip">Duración <span>${duration}</span></div>
+            <div class="meta-chip">Eventos  <span>${session.event_count}</span></div>
+          </div>
+        </div>
+        <button class="modal-btn confirm" style="align-self:flex-start"
+          onclick="confirmDeleteOne(${session.id}, '${escHtml(session.agent_id)}')">✕ ELIMINAR</button>
+      </div>
+      <div class="events-toolbar">
+        <input class="events-search" id="events-search" type="text"
+               placeholder="Buscar en eventos..." oninput="filterEvents()">
+        <div class="type-filter-btns" id="type-filters">
+          ${types.map(t => `<button class="type-filter-btn" data-type="${t}" onclick="toggleTypeFilter('${t}')">${t}</button>`).join('')}
+        </div>
+        <span class="ev-count" id="ev-count">${events.length} eventos</span>
+      </div>
+      <div class="events-wrap">
+        <table>
+          <thead><tr>
+            <th>TIMESTAMP</th><th>TIPO</th><th>DATOS</th>
+          </tr></thead>
+          <tbody id="events-tbody"></tbody>
+        </table>
+      </div>`;
+
+    renderEvents();
+  } catch(e) {
+    panel.innerHTML = '<div class="detail-placeholder"><p>ERROR AL CARGAR</p></div>';
+  }
+}
+
+function filterEvents() {
+  const q = (document.getElementById('events-search')?.value || '').toLowerCase();
+  filteredDetailEvents = currentDetailEvents.filter(ev => {
+    if (activeTypeFilter && ev.event_type !== activeTypeFilter) return false;
+    if (q && !JSON.stringify(ev).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  renderEvents();
+}
+
+function toggleTypeFilter(type) {
+  activeTypeFilter = activeTypeFilter === type ? null : type;
+  document.querySelectorAll('.type-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === activeTypeFilter);
+  });
+  filterEvents();
+}
+
+function renderEvents() {
+  const tbody = document.getElementById('events-tbody');
+  if (!tbody) return;
+  document.getElementById('ev-count').textContent = `${filteredDetailEvents.length} / ${currentDetailEvents.length} eventos`;
+
+  if (!filteredDetailEvents.length) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:2px">SIN RESULTADOS</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filteredDetailEvents.map(ev => {
+    const dataStr = ev.data ? (typeof ev.data === 'string' ? ev.data : JSON.stringify(ev.data)) : '—';
+    return `
+      <tr>
+        <td class="col-ts">${ev.timestamp}</td>
+        <td class="col-type"><span class="type-badge type-${ev.event_type}">${ev.event_type}</span></td>
+        <td class="col-data">${escHtml(dataStr)}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Eliminación ───────────────────────────────────────────────────────────────
+function confirmDeleteOne(id, agentId) {
+  deleteTarget = { type: 'one', id };
+  document.getElementById('modal-title').textContent = 'ELIMINAR SESIÓN';
+  document.getElementById('modal-body').textContent =
+    `¿Eliminar la sesión #${id} del agente "${agentId}"? Se borrarán todos sus eventos. Esta acción no se puede deshacer.`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function confirmDeleteAll() {
+  if (!allSessions.length) { toast('No hay sesiones que eliminar'); return; }
+  deleteTarget = { type: 'all' };
+  document.getElementById('modal-title').textContent = 'ELIMINAR TODAS LAS SESIONES';
+  document.getElementById('modal-body').textContent =
+    `¿Eliminar las ${allSessions.length} sesiones y todos sus eventos? Esta acción no se puede deshacer.`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  deleteTarget = null;
+}
+
+async function executeDelete() {
+  // Guardar el target ANTES de cerrar el modal (closeModal lo pone a null)
+  const target = deleteTarget;
+  closeModal();
+  if (!target) return;
+
+  try {
+    if (target.type === 'one') {
+      const res = await fetch(`/api/sessions/${target.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast(`Sesión #${target.id} eliminada`, 'success');
+      if (selectedSessionId === target.id) {
+        selectedSessionId = null;
+        document.getElementById('detail-panel').innerHTML =
+          '<div class="detail-placeholder"><div class="big-icon">◫</div><p>SELECCIONA UNA SESIÓN</p></div>';
+      }
+    } else {
+      const res = await fetch('/api/sessions', { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      toast(`${data.deleted_count} sesiones eliminadas`, 'success');
+      selectedSessionId = null;
+      document.getElementById('detail-panel').innerHTML =
+        '<div class="detail-placeholder"><div class="big-icon">◫</div><p>SELECCIONA UNA SESIÓN</p></div>';
+    }
+    await loadSessions();
+  } catch(e) {
+    console.error('Error al eliminar:', e);
+    toast(`Error al eliminar: ${e.message}`, 'error');
+  }
+}
+
+// ── Utilidades ────────────────────────────────────────────────────────────────
+function formatDuration(s) {
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type='') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  c.appendChild(t); setTimeout(() => t.remove(), 3200);
+}
+
+// Cerrar modal clicando fuera
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadSessions();
+
+// Refresco automático cada 10s (para ver sesiones activas actualizarse)
+setInterval(async () => {
+  const prev = allSessions.length;
+  await loadSessions();
+  // Si hay una sesión abierta seleccionada, recargar su detalle
+  if (selectedSessionId) {
+    const s = allSessions.find(s => s.id === selectedSessionId);
+    if (s && !s.ended_at) loadDetail(selectedSessionId);
+  }
+}, 10000);
+</script>
+</body>
+</html>

@@ -102,6 +102,12 @@
   .dot.green  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
   .dot.blue   { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .nav-sessions-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 4px 12px; border-radius: 2px; border: 1px solid var(--border);
+    color: var(--muted); text-decoration: none; transition: all 0.15s;
+  }
+  .nav-sessions-btn:hover { border-color: var(--crimson2); color: var(--crimson2); background: rgba(139,26,26,0.1); }
   .ws-status { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 2px; border: 1px solid currentColor; }
   .ws-status.connected    { color: var(--green); }
   .ws-status.disconnected { color: var(--red); }
@@ -327,6 +333,7 @@
   <div class="header-stats">
     <div class="stat-pill"><div class="dot green"></div><span id="agents-online">0</span>&nbsp;ONLINE</div>
     <div class="stat-pill"><div class="dot blue"></div><span id="total-events">0</span>&nbsp;EVENTOS</div>
+    <a href="/sessions" class="nav-sessions-btn">◫ SESIONES</a>
     <div class="ws-status connecting" id="ws-status">CONECTANDO...</div>
   </div>
 </header>
