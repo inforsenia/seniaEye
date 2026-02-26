@@ -94,3 +94,5 @@ Thumbs.db
 .direnv
 
 *.log
+
+*__pycache__*
