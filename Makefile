@@ -12,7 +12,7 @@ server:
 	$(PYTHON) -m uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
 
 agent:
-	$(PYTHON) -m agent.main
+	sudo ./venv/bin/python -m agent.main
 
 help:
 	@echo "Available targets:"

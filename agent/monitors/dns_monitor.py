@@ -1,24 +1,18 @@
 import datetime
 import threading
-
-from scapy.all import sniff, DNSQR  # scapy is required, add to requirements
-
+from scapy.all import sniff, DNSQR
 from agent.events.models import Event
+from agent.monitors.violations import ViolationChecker
+from agent.utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class DNSMonitor:
-    """Monitoriza consultas DNS mediante captura de paquetes con scapy.
-
-    - Inicia un hilo independiente que usa ``scapy.sniff`` para capturar
-      paquetes UDP en el puerto 53.
-    - Cada vez que se detecta una consulta (DNSQR), genera un ``Event``.
-
-    El callback se debe ajustar al mismo que usa el agente principal para
-    encolar eventos (por ejemplo ``sender.add_event``).
-    """
-
-    def __init__(self, callback, machine_name: str = "unknown"):
+    """Monitors DNS queries and reports violations."""
+    
+    def __init__(self, callback, violation_checker: ViolationChecker, machine_name: str = "unknown"):
         self.callback = callback
+        self.violation_checker = violation_checker
         self.machine_name = machine_name
         self._thread = None
         self._stop_sniff = threading.Event()
@@ -26,22 +20,20 @@ class DNSMonitor:
     def _process_packet(self, packet):
         if packet.haslayer(DNSQR):
             qname = packet[DNSQR].qname.decode(errors="ignore")
-            evt = Event(
-                machine_name=self.machine_name,
-                event_type="dns_query",
-                description=qname,
-                timestamp=datetime.datetime.now().isoformat(),
-            )
-            try:
-                self.callback(evt)
-            except Exception:
-                pass
+            violation = self.violation_checker.check_dns(qname)
+            if violation:
+                evt = Event(
+                    machine_name=self.machine_name,
+                    event_type=violation["event_type"],
+                    description=violation["description"],
+                    timestamp=datetime.datetime.now().isoformat(),
+                )
+                try:
+                    self.callback(evt)
+                except Exception as e:
+                    logger.error(f"DNS callback error: {e}")
 
     def start(self, iface: str | None = None):
-        """Arranca la captura en un hilo demonio.
-
-        ``iface`` puede usarse para especificar una interfaz concreta.
-        """
         if self._thread and self._thread.is_alive():
             return
 

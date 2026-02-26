@@ -1,19 +1,18 @@
 import datetime
 import threading
-
-from scapy.all import sniff, IP  # capture any IP packet
-
+from scapy.all import sniff, IP
 from agent.events.models import Event
+from agent.monitors.violations import ViolationChecker
+from agent.utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class IPMonitor:
-    """Monitoriza tráfico IP y genera eventos con las IPs de destino.
-
-    Implementación basada en scapy similar al monitor DNS.
-    """
-
-    def __init__(self, callback, machine_name: str = "unknown"):
+    """Monitors IP traffic and reports violations."""
+    
+    def __init__(self, callback, violation_checker: ViolationChecker, machine_name: str = "unknown"):
         self.callback = callback
+        self.violation_checker = violation_checker
         self.machine_name = machine_name
         self._thread = None
         self._stop_sniff = threading.Event()
@@ -21,16 +20,18 @@ class IPMonitor:
     def _process_packet(self, packet):
         if packet.haslayer(IP):
             dst = packet[IP].dst
-            evt = Event(
-                machine_name=self.machine_name,
-                event_type="ip_destination",
-                description=dst,
-                timestamp=datetime.datetime.now().isoformat(),
-            )
-            try:
-                self.callback(evt)
-            except Exception:
-                pass
+            violation = self.violation_checker.check_ip(dst)
+            if violation:
+                evt = Event(
+                    machine_name=self.machine_name,
+                    event_type=violation["event_type"],
+                    description=violation["description"],
+                    timestamp=datetime.datetime.now().isoformat(),
+                )
+                try:
+                    self.callback(evt)
+                except Exception as e:
+                    logger.error(f"IP callback error: {e}")
 
     def start(self, iface: str | None = None):
         if self._thread and self._thread.is_alive():

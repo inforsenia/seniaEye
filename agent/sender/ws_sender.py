@@ -5,7 +5,7 @@ from typing import List
 from websockets import connect, WebSocketException
 from websockets.exceptions import ConnectionClosed
 from agent.events.models import Event
-from agent.config import load_config
+from agent.utils.config import load_config
 
 logger = logging.getLogger("ws_sender")
 logger.setLevel(logging.INFO)
@@ -22,8 +22,8 @@ CMD_STOP  = "STOP_MONITORING"
 class WSSender:
     def __init__(self):
         self.config       = load_config()
-        self.server_url   = self.config.get("server_ws_url")
-        self.retry_delay  = self.config.get("retry_delay", 30)
+        self.server_url   = self.config.server_url
+        self.retry_delay  = self.config.retry_delay
         self.event_queue: List[Event] = []
 
         # Estado interno del agente

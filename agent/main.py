@@ -1,47 +1,62 @@
-"""
-Este fichero es el punto de entrada principal del agente de monitorización que se ejecuta
-en cada equipo del aula.
-
-Funciones y comportamiento principal:
-
-- Inicializa la instancia de WSSender, que se encarga de la comunicación con el servidor
-  central mediante WebSockets.
-
-- Lanza el bucle de envío de eventos en segundo plano, manteniendo la conexión activa y
-  retransmitiendo eventos pendientes si fuese necesario.
-
-- Simula o recibe eventos generados por los distintos monitores (puertos, DNS, IPs, interfaces)
-  y los agrega a la cola del WSSender para su envío al servidor.
-
-- Contiene un bucle principal que, en este ejemplo de prueba, genera eventos de forma periódica
-  (cada 5 segundos) para demostrar la transmisión de datos.
-
-En resumen:
-Este fichero orquesta la operación del agente, asegurando que los eventos del equipo se
-recopilen y envíen de forma continua y confiable al servidor central.
-"""
+"""Agent entry point - initializes sender and monitors."""
 
 import asyncio
+import signal
 from agent.sender.ws_sender import WSSender
-from agent.events.models import Event
-import datetime
+from agent.monitors.manager import MonitorManager
+from agent.utils.config import load_config
+from agent.utils.machine_info import get_machine_name
+from agent.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+_monitor_manager = None
+_sender = None
+
+def setup_signal_handlers():
+    """Handle graceful shutdown."""
+    def signal_handler(signum, frame):
+        logger.info(f"Signal {signum} received, shutting down...")
+        if _monitor_manager:
+            _monitor_manager.stop()
+        raise KeyboardInterrupt()
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
 async def main():
-    sender = WSSender()
-
-    # Lanzar el envío de eventos en background
-    asyncio.create_task(sender.run())
-
-    # Simulación de eventos
-    while True:
-        event = Event(
-            machine_name="PC-Aula-1",
-            event_type="port_violation",
-            description="Intento de acceso a puerto no permitido",
-            timestamp=datetime.datetime.now().isoformat()
+    global _monitor_manager, _sender
+    
+    try:
+        config = load_config("agent/config/default.conf")
+        machine_name = config.machine_name or get_machine_name()
+        logger.info(f"Machine: {machine_name}")
+        
+        _sender = WSSender()
+        asyncio.create_task(_sender.run())
+        
+        _monitor_manager = MonitorManager(
+            event_callback=_sender.add_event,
+            machine_name=machine_name,
+            interface=None
         )
-        sender.add_event(event)
-        await asyncio.sleep(5)  # Cada 5s generar un evento de prueba
+        
+        logger.info("Starting monitors...")
+        _monitor_manager.start()
+        
+        while True:
+            await asyncio.sleep(1)
+    
+    except KeyboardInterrupt:
+        logger.info("Shutting down")
+        if _monitor_manager:
+            _monitor_manager.stop()
+    except Exception as e:
+        logger.error(f"Fatal error: {e}", exc_info=True)
+        if _monitor_manager:
+            _monitor_manager.stop()
+        raise
 
 if __name__ == "__main__":
+    setup_signal_handlers()
     asyncio.run(main())
