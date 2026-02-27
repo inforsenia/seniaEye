@@ -9,6 +9,8 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 python-dotenv==1.2.1
 pyudev==0.24.4
+pyyaml>=6.0
+requests>=2.31.0
 scapy==2.7.0
 setuptools==82.0.0
 starlette==0.52.1
