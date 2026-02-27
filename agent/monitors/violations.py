@@ -7,6 +7,7 @@ SERVER RESPONSIBILITIES:
 - Handle incoming Event objects from agents
 """
 
+from typing import Optional
 from agent.config.models import MonitoringPolicy
 from agent.utils.logger import get_logger
 
@@ -32,8 +33,35 @@ class ViolationChecker:
             return None
         return {"event_type": "ip_violation", "description": f"Blocked IP: {ip}"}
     
-    def check_port(self, port: int) -> dict | None:
-        if not isinstance(port, int) or port < 0 or port > 65535 or port in self.policy.allowed_ports:
+    def _find_port_rule(self, port: int):
+        """Find PortRule for given port."""
+        for rule in self.policy.allowed_ports:
+            if rule.port == port:
+                return rule
+        return None
+    
+    def check_port(self, port: int, destination_ip: Optional[str] = None) -> dict | None:
+        """Check if port is allowed, optionally considering destination IP."""
+        # Validate port number
+        if not isinstance(port, int) or port < 0 or port > 65535:
             return None
-        return {"event_type": "port_violation", "description": f"Unallowed port: {port}"}
+        
+        # Check if port is in allowlist
+        rule = self._find_port_rule(port)
+        
+        if not rule:
+            return {
+                "event_type": "port_violation",
+                "description": f"Unallowed port: {port}"
+            }
+        
+        # If destination IP specified, check destination whitelist
+        if destination_ip and rule.allowed_destinations:
+            if destination_ip not in rule.allowed_destinations:
+                return {
+                    "event_type": "port_violation",
+                    "description": f"Unallowed destination {destination_ip} for port {port}"
+                }
+        
+        return None  # Port is allowed
 

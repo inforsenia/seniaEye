@@ -21,6 +21,9 @@ class PortMonitor:
             if not packet.haslayer(IP):
                 return
             
+            ip_layer = packet[IP]
+            dst_ip = ip_layer.dst
+            
             dst_port = None
             if packet.haslayer(TCP):
                 dst_port = packet[TCP].dport
@@ -28,7 +31,10 @@ class PortMonitor:
                 dst_port = packet[UDP].dport
             
             if dst_port:
-                self.callback({"port": dst_port})
+                self.callback({
+                    "port": dst_port,
+                    "destination": dst_ip
+                })
         except Exception as e:
             logger.error(f"Port monitor error: {e}")
     
