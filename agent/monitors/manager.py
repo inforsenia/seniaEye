@@ -46,14 +46,16 @@ class MonitorManager:
         """Handle captured port and check for violation."""
         try:
             port = port_data.get("port")
+            destination = port_data.get("destination")
             if port:
-                violation = self.violation_checker.check_port(port)
+                violation = self.violation_checker.check_port(port, destination)
                 if violation:
                     evt = Event(
                         machine_name=self.machine_name,
                         event_type=violation["event_type"],
                         description=violation["description"],
                         timestamp=datetime.datetime.now().isoformat(),
+                        destination_ip=destination,
                     )
                     self.event_callback(evt)
         except Exception as e:
