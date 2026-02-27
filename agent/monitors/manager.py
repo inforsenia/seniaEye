@@ -64,7 +64,7 @@ class MonitorManager:
         for name, monitor in self.monitors:
             try:
                 if hasattr(monitor, 'start'):
-                    monitor.start(iface=self.interface) if name != "Port" else monitor.start()
+                    monitor.start()
                     logger.info(f"{name}Monitor started")
             except Exception as e:
                 logger.error(f"Failed to start {name}Monitor: {e}")
