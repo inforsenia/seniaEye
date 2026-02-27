@@ -14,6 +14,9 @@ server:
 agent:
 	sudo ./venv/bin/python -m agent.main
 
+clean: 
+	find ./package | grep -E "(__pycache__|\.pyc$$)" | xargs rm -rf
+
 help:
 	@echo "Available targets:"
 	@echo "  make venv      # create virtual environment"
