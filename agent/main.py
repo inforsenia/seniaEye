@@ -35,10 +35,21 @@ async def main():
         _sender = WSSender()
         asyncio.create_task(_sender.run())
         
+        # Extract server URL from ws_url (e.g., ws://127.0.0.1:8000/ws/events -> http://127.0.0.1:8000)
+        server_url = "http://localhost:8000"
+        if hasattr(config, 'ws_url') and config.ws_url:
+            # Convert ws:// or wss:// to http:// or https://
+            ws_url = config.ws_url
+            if ws_url.startswith("wss://"):
+                server_url = "https://" + ws_url[6:].split('/')[0]
+            elif ws_url.startswith("ws://"):
+                server_url = "http://" + ws_url[5:].split('/')[0]
+        
         _monitor_manager = MonitorManager(
             event_callback=_sender.add_event,
             machine_name=machine_name,
-            interface=None
+            interface=None,
+            server_url=server_url
         )
         
         logger.info("Starting monitors...")

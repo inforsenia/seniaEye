@@ -5,7 +5,9 @@ import datetime
 from agent.monitors.dns_monitor import DNSMonitor
 from agent.monitors.ip_monitor import IPMonitor
 from agent.monitors.port_monitor import PortMonitor
+from agent.monitors.port_rules_monitor import PortRulesMonitor
 from agent.monitors.interface_monitor import InterfaceMonitor
+from agent.monitors.block_list_monitor import BlockListMonitor
 from agent.monitors.violations import ViolationChecker
 from agent.config.models import MonitoringPolicy
 from agent.events.models import Event
@@ -19,7 +21,8 @@ class MonitorManager:
     def __init__(self, 
                  event_callback: Callable,
                  machine_name: str,
-                 interface: Optional[str] = None):
+                 interface: Optional[str] = None,
+                 server_url: str = "http://localhost:8000"):
         
         self.event_callback = event_callback
         self.machine_name = machine_name
@@ -28,13 +31,18 @@ class MonitorManager:
         self.policy = MonitoringPolicy()
         self.violation_checker = ViolationChecker(self.policy)
         
+        # Initialize port rules monitor first
+        self.port_rules_monitor = PortRulesMonitor(server_url=server_url)
+        
         self.dns_monitor = DNSMonitor(event_callback, self.violation_checker, machine_name)
         self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name)
-        self.port_monitor = PortMonitor(self._handle_port, interface)
+        self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
         self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
+        self.block_list_monitor = BlockListMonitor()
         
         self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
-                        ("Port", self.port_monitor), ("Interface", self.interface_monitor)]
+                        ("Port", self.port_monitor), ("Interface", self.interface_monitor),
+                        ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
         logger.info("MonitorManager initialized")
     
     def update_policy(self, policy: MonitoringPolicy):
@@ -47,17 +55,35 @@ class MonitorManager:
         try:
             port = port_data.get("port")
             destination = port_data.get("destination")
+            is_allowed = port_data.get("allowed", True)
+            reason = port_data.get("reason", "")
+            
             if port:
-                violation = self.violation_checker.check_port(port, destination)
-                if violation:
+                # If port rules indicate violation, create event
+                if not is_allowed:
+                    source = port_data.get("source", "unknown")
+                    protocol = port_data.get("protocol", "tcp")
+                    
                     evt = Event(
                         machine_name=self.machine_name,
-                        event_type=violation["event_type"],
-                        description=violation["description"],
+                        event_type="port_violation",
+                        description=f"Unauthorized port access: {protocol}/{port} from {source}. {reason}",
                         timestamp=datetime.datetime.now().isoformat(),
                         destination_ip=destination,
                     )
                     self.event_callback(evt)
+                else:
+                    # For allowed ports, still check with violation checker
+                    violation = self.violation_checker.check_port(port, destination)
+                    if violation:
+                        evt = Event(
+                            machine_name=self.machine_name,
+                            event_type=violation["event_type"],
+                            description=violation["description"],
+                            timestamp=datetime.datetime.now().isoformat(),
+                            destination_ip=destination,
+                        )
+                        self.event_callback(evt)
         except Exception as e:
             logger.error(f"Port handler error: {e}")
     
