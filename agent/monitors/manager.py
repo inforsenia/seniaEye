@@ -39,16 +39,18 @@ class MonitorManager:
         # Initialize port rules monitor
         self.port_rules_monitor = PortRulesMonitor(server_url=server_url)
         
+        # Initialize port rules monitor first
+        self.port_rules_monitor = PortRulesMonitor(server_url=server_url)
+        
         self.dns_monitor = DNSMonitor(event_callback, self.violation_checker, machine_name)
-    #    self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name)
-    #    self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
-    #    self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
+        self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name)
+        self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
+        self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
+        self.block_list_monitor = BlockListMonitor()
         
-        #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
-        #                ("Port", self.port_monitor), ("Interface", self.interface_monitor),
-        #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
-        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor)]
-        
+        self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
+                        ("Port", self.port_monitor), ("Interface", self.interface_monitor),
+                        ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
         logger.info("MonitorManager initialized")
     
     def update_policy(self, policy: MonitoringPolicy):

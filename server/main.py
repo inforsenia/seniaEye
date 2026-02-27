@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 import os
 import logging
+import logging
 
 from server.database import (
     init_db, open_session, close_session, save_event,
@@ -64,6 +65,42 @@ def _load_blocked_domains():
     except Exception as e:
         logger.error(f"Failed to load blocked domains: {e}")
 
+
+# ── Domain Resolution ──────────────────────────────────────────────────────────
+resolved_domains: dict = {}
+resolver_timestamp: str = ""
+
+# ── Port Rules ─────────────────────────────────────────────────────────────────
+port_rules_manager: PortRulesManager = None
+
+def _load_blocked_domains():
+    """Load and resolve blocked domains at server boot."""
+    global resolved_domains, resolver_timestamp
+    
+    blocked_domains_file = Path(os.path.dirname(os.path.abspath(__file__))) / "blocked_domains.txt"
+    
+    if not blocked_domains_file.exists():
+        logger.warning(f"blocked_domains.txt not found at {blocked_domains_file}")
+        return
+    
+    try:
+        with open(blocked_domains_file, 'r') as f:
+            domains = [line.strip() for line in f if line.strip()]
+        
+        if not domains:
+            logger.warning("blocked_domains.txt is empty")
+            return
+        
+        logger.info(f"[BOOT] Loading {len(domains)} domain(s)")
+        resolver = DomainResolver()
+        resolved_domains = resolver.resolve_domains(domains)
+        resolver_timestamp = resolver.get_timestamp()
+        
+        total_ips = sum(len(ips) for ips in resolved_domains.values())
+        logger.info(f"[BOOT] Loaded {len(resolved_domains)} domain(s) with {total_ips} total IP(s)")
+        
+    except Exception as e:
+        logger.error(f"Failed to load blocked domains: {e}")
 
 # ── Comandos ───────────────────────────────────────────────────────────────────
 CMD_START = "START_MONITORING"
@@ -177,17 +214,6 @@ def _now() -> str:
 
 
 manager = ConnectionManager()
-
-# Cargar dominios bloqueados al arrancar
-_load_blocked_domains()
-
-# Cargar reglas de puertos al arrancar
-try:
-    port_rules_manager = PortRulesManager("server/allowed_ports_config.yaml")
-except Exception as e:
-    logger.error(f"Failed to load port rules: {e}")
-    port_rules_manager = PortRulesManager.__new__(PortRulesManager)
-    port_rules_manager.rules = {}
 
 
 # ── WebSocket: Agentes ─────────────────────────────────────────────────────────
@@ -335,6 +361,56 @@ async def api_port_rule(port: int):
 
 
 # ── API REST: Sesiones ─────────────────────────────────────────────────────────
+
+# ── API REST: Block List ──────────────────────────────────────────────────────
+
+@app.get("/api/block-list")
+async def api_block_list():
+    """Get resolved blocked domains and IPs."""
+    return JSONResponse({
+        "timestamp": resolver_timestamp,
+        "domains": resolved_domains,
+        "total_domains": len(resolved_domains),
+        "total_ips": sum(len(ips) for ips in resolved_domains.values())
+    })
+
+
+# ── API REST: Port Rules ───────────────────────────────────────────────────────
+
+@app.get("/api/port-rules")
+async def api_port_rules():
+    """Get all port rules."""
+    if not port_rules_manager or not port_rules_manager.rules:
+        return JSONResponse({
+            "timestamp": _now(),
+            "total_rules": 0,
+            "rules": []
+        })
+    
+    return JSONResponse({
+        "timestamp": _now(),
+        "total_rules": len(port_rules_manager.rules),
+        "rules": [rule.to_dict() for rule in port_rules_manager.get_all_rules()]
+    })
+
+
+@app.get("/api/port-rules/{port}")
+async def api_port_rule(port: int):
+    """Get rule for specific port."""
+    if not port_rules_manager:
+        raise HTTPException(status_code=404, detail="Port rules not loaded")
+    
+    rule = port_rules_manager.get_port_rule(port)
+    if not rule:
+        raise HTTPException(status_code=404, detail=f"No rule found for port {port}")
+    
+    return JSONResponse({
+        "port": rule.port,
+        "protocol": rule.protocol,
+        "description": rule.description,
+        "allowed_sources": [source.to_dict() for source in rule.allowed_sources]
+    })
+
 
 @app.get("/api/sessions")
 async def api_list_sessions():
