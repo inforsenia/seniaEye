@@ -114,7 +114,7 @@
   .ws-status.connecting   { color: var(--yellow); }
 
   /* ── LAYOUT ── */
-  .body-wrap { display: flex; flex: 1; overflow: hidden; }
+  .body-wrap { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
   /* ── SIDEBAR ── */
   aside {
@@ -200,7 +200,7 @@
   .ies-footer-text strong { color: rgba(139,26,26,0.8); }
 
   /* ── MAIN ── */
-  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .toolbar {
     display: flex; align-items: center; gap: 10px; padding: 10px 20px;
     border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface);
@@ -222,7 +222,7 @@
   .event-count-badge { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
   /* ── TABLE ── */
-  .table-wrap { flex: 1; overflow-y: auto; }
+  .table-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   thead tr { position: sticky; top: 0; z-index: 10; background: var(--bg); }
   th {
@@ -364,7 +364,7 @@
   <main>
     <div class="toolbar">
       <input class="search-box" id="search-input" type="text" placeholder="Buscar: agente, tipo, datos...">
-      <button class="toolbar-btn" onclick="scrollToBottom()">↓ FIN</button>
+      <button class="toolbar-btn" onclick="scrollToTop()">↑ RECIENTES</button>
       <button class="toolbar-btn" id="btn-autoscroll" onclick="toggleAutoScroll()">AUTO: ON</button>
       <button class="toolbar-btn danger" onclick="clearLog()">LIMPIAR</button>
       <div class="event-count-badge" id="event-count-badge">0 / 0</div>
@@ -537,7 +537,7 @@ function addEvent(ev, live) {
   if (state.allEvents.length > 2000) state.allEvents.splice(0, 200);
   if (live) {
     if (eventPassesFilter(ev)) { state.filteredEvents.push(ev); appendRow(ev, true); updateCountBadge(); }
-    if (state.autoScroll) scrollToBottom();
+    if (state.autoScroll) scrollToTop();
   }
 }
 
@@ -560,7 +560,7 @@ function rebuildTable() {
   if (!state.filteredEvents.length) { empty.style.display='flex'; table.style.display='none'; }
   else { empty.style.display='none'; table.style.display=''; state.filteredEvents.forEach(ev => appendRow(ev, false)); }
   updateCountBadge();
-  if (state.autoScroll) scrollToBottom();
+  if (state.autoScroll) scrollToTop();
 }
 
 function appendRow(ev, animate) {
@@ -579,7 +579,7 @@ function appendRow(ev, animate) {
     <td class="col-agent"><span class="agent-badge" style="color:${color};border-color:${color}30;background:${color}10">${ev.agent_id||'—'}</span></td>
     <td class="col-type"><span class="type-badge type-${ev.type}">${ev.type}</span></td>
     <td class="col-data">${escHtml(dataStr)}</td>`;
-  tbody.appendChild(tr);
+  tbody.prepend(tr);
 }
 
 function formatData(d) { if(!d) return '—'; return typeof d==='string'?d:JSON.stringify(d); }
@@ -594,7 +594,7 @@ function updateCountBadge() {
   document.getElementById('event-count-badge').textContent = `${state.filteredEvents.length} / ${state.allEvents.length}`;
   updateStats();
 }
-function scrollToBottom() { const w=document.getElementById('table-wrap'); w.scrollTop=w.scrollHeight; }
+function scrollToTop() { const w=document.getElementById('table-wrap'); w.scrollTop=0; }
 function toggleAutoScroll() { state.autoScroll=!state.autoScroll; document.getElementById('btn-autoscroll').textContent=`AUTO: ${state.autoScroll?'ON':'OFF'}`; }
 function clearLog() {
   state.allEvents=[]; state.filteredEvents=[];

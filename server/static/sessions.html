@@ -75,13 +75,13 @@
   }
 
   /* ── LAYOUT ── */
-  .layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 64px); }
+  .layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 64px); min-height: 0; }
 
   /* ── LISTA DE SESIONES ── */
   .sessions-panel {
     width: 320px; flex-shrink: 0;
     background: var(--surface); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden; min-height: 0;
   }
   .panel-toolbar {
     display: flex; align-items: center; gap: 8px;
@@ -101,7 +101,7 @@
   }
   .del-all-btn:hover { border-color: var(--red); color: var(--red); }
 
-  .sessions-list { flex: 1; overflow-y: auto; }
+  .sessions-list { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
   .session-item {
     padding: 12px 14px; cursor: pointer;
     border-left: 3px solid transparent; border-bottom: 1px solid rgba(30,42,58,0.5);
@@ -150,7 +150,7 @@
   .empty-list p { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; }
 
   /* ── DETALLE ── */
-  .detail-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .detail-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .detail-header {
     display: flex; align-items: flex-start; justify-content: space-between;
     padding: 16px 24px; border-bottom: 1px solid var(--border);
@@ -196,7 +196,27 @@
   .type-filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
   .type-filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
 
-  .events-wrap { flex: 1; overflow-y: auto; }
+  .events-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
+
+  /* Botones de orden y scroll en toolbar de eventos */
+  .sort-btn {
+    padding: 4px 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    border: 1px solid var(--border); border-radius: 2px; cursor: pointer;
+    background: transparent; color: var(--muted); transition: all 0.15s;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .sort-btn:hover         { border-color: var(--accent); color: var(--accent); }
+  .sort-btn.active-sort   { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+  .scroll-btn {
+    padding: 4px 10px; font-family: var(--mono); font-size: 11px;
+    border: 1px solid var(--border); border-radius: 2px; cursor: pointer;
+    background: transparent; color: var(--muted); transition: all 0.15s; flex-shrink: 0;
+  }
+  .scroll-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* Cabecera de timestamp clicable para ordenar */
+  th.sortable-ts { cursor: pointer; user-select: none; }
+  th.sortable-ts:hover { color: var(--accent); }
+  th.sortable-ts .sort-arrow { margin-left: 4px; opacity: 0.7; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   thead tr { position: sticky; top: 0; z-index: 10; background: var(--bg); }
   th {
@@ -339,6 +359,7 @@ let currentDetailEvents = [];
 let filteredDetailEvents = [];
 let deleteTarget = null;   // { type: 'one'|'all', id? }
 let activeTypeFilter = null;
+let sortOrder = 'desc';    // 'desc' = nuevos primero, 'asc' = antiguos primero
 
 // ── Carga inicial ─────────────────────────────────────────────────────────────
 async function loadSessions() {
@@ -441,12 +462,17 @@ async function loadDetail(sessionId) {
         <div class="type-filter-btns" id="type-filters">
           ${types.map(t => `<button class="type-filter-btn" data-type="${t}" onclick="toggleTypeFilter('${t}')">${t}</button>`).join('')}
         </div>
+        <button class="sort-btn ${sortOrder==='desc'?'active-sort':''}" id="btn-sort" onclick="toggleSortOrder()">
+          ${sortOrder==='desc'?'↓ NUEVOS':'↑ ANTIGUOS'}
+        </button>
+        <button class="scroll-btn" id="btn-scroll-top" onclick="scrollEventsTo('top')" title="Ir al principio">↑</button>
+        <button class="scroll-btn" id="btn-scroll-bot" onclick="scrollEventsTo('bottom')" title="Ir al final">↓</button>
         <span class="ev-count" id="ev-count">${events.length} eventos</span>
       </div>
-      <div class="events-wrap">
+      <div class="events-wrap" id="events-wrap">
         <table>
           <thead><tr>
-            <th>TIMESTAMP</th><th>TIPO</th><th>DATOS</th>
+            <th class="sortable-ts" onclick="toggleSortOrder()">TIMESTAMP <span class="sort-arrow" id="sort-arrow">${sortOrder==='desc'?'▼':'▲'}</span></th><th>TIPO</th><th>DATOS</th>
           </tr></thead>
           <tbody id="events-tbody"></tbody>
         </table>
@@ -486,7 +512,8 @@ function renderEvents() {
     return;
   }
 
-  tbody.innerHTML = filteredDetailEvents.map(ev => {
+  const sorted = sortOrder === 'desc' ? [...filteredDetailEvents].reverse() : [...filteredDetailEvents];
+  tbody.innerHTML = sorted.map(ev => {
     const dataStr = ev.data ? (typeof ev.data === 'string' ? ev.data : JSON.stringify(ev.data)) : '—';
     return `
       <tr>
@@ -570,7 +597,27 @@ function toast(msg, type='') {
   c.appendChild(t); setTimeout(() => t.remove(), 3200);
 }
 
-// Cerrar modal clicando fuera
+// ── Orden y scroll de eventos ────────────────────────────────────────────────
+function toggleSortOrder() {
+  sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+  // Actualizar botón de orden
+  const btn = document.getElementById('btn-sort');
+  const arrow = document.getElementById('sort-arrow');
+  if (btn) {
+    btn.textContent = sortOrder === 'desc' ? '↓ NUEVOS' : '↑ ANTIGUOS';
+    btn.classList.toggle('active-sort', sortOrder === 'desc');
+  }
+  if (arrow) arrow.textContent = sortOrder === 'desc' ? '▼' : '▲';
+  renderEvents();
+}
+
+function scrollEventsTo(pos) {
+  const wrap = document.getElementById('events-wrap');
+  if (!wrap) return;
+  wrap.scrollTop = pos === 'top' ? 0 : wrap.scrollHeight;
+}
+
+// ── Cerrar modal clicando fuera
 document.getElementById('modal-overlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeModal();
 });
