@@ -143,158 +143,134 @@ header {
 .ws-pill.err { color: var(--red); }
 .ws-pill.wait{ color: var(--yellow); }
 
-/* ── PANEL AGENTES (fila 2) ─────────────────────────────────────────────────── */
-.agents-panel {
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-}
+  /* ── LAYOUT ── */
+  .body-wrap { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
-.agents-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.agents-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); }
-.agents-header-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
-.ctrl-btn {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-  padding: 3px 10px; border: 1px solid; border-radius: 2px;
-  cursor: pointer; background: transparent; transition: all 0.15s;
-}
-.ctrl-btn.start-all { color: var(--green); border-color: rgba(0,255,136,0.35); }
-.ctrl-btn.start-all:hover { background: rgba(0,255,136,0.1); }
-.ctrl-btn.stop-all  { color: var(--red);   border-color: rgba(255,62,94,0.35); }
-.ctrl-btn.stop-all:hover  { background: rgba(255,62,94,0.1); }
-.ctrl-btn.filter-sel { color: var(--muted); border-color: var(--border); }
-.ctrl-btn.filter-sel.active { color: var(--crimson2); border-color: var(--crimson2); background: rgba(181,32,32,0.1); }
-.ctrl-btn.filter-sel:hover  { color: var(--accent); border-color: var(--accent); }
+  /* ── SIDEBAR ── */
+  aside {
+    width: 240px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .aside-title {
+    padding: 12px 16px 10px; font-size: 10px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .agent-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .agent-item {
+    padding: 8px 14px; cursor: pointer;
+    border-left: 3px solid transparent; transition: all 0.15s;
+    border-bottom: 1px solid rgba(30,42,58,0.4);
+  }
+  .agent-item:hover    { background: rgba(0,212,255,0.05); }
+  .agent-item.selected { border-left-color: var(--crimson2); background: rgba(139,26,26,0.1); }
 
-/* Grid de tarjetas */
-.agents-grid {
-  flex: 1;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-  padding: 6px 10px;
-  align-content: start;
-}
+  .agent-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .agent-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .agent-dot.offline { background: var(--muted); }
+  .agent-id { font-family: var(--mono); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-evcount { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
-/* Tarjeta compacta de agente */
-.agent-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 5px 7px;
-  cursor: pointer;
-  transition: all 0.15s;
-  border-left: 3px solid transparent;
-  min-width: 0;
-}
-.agent-card:hover { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.04); }
-.agent-card.selected { border-left-color: var(--crimson2); background: rgba(181,32,32,0.07); }
-.agent-card.monitoring { border-left-color: var(--green); }
+  .agent-status-bar { display: flex; gap: 4px; margin-bottom: 6px; }
+  .status-badge {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 2px; border: 1px solid; text-transform: uppercase;
+  }
+  .status-badge.waiting    { color: var(--yellow); border-color: rgba(255,209,102,0.3); background: rgba(255,209,102,0.08); }
+  .status-badge.monitoring { color: var(--green);  border-color: rgba(0,255,136,0.3);   background: rgba(0,255,136,0.08); }
+  .status-badge.offline    { color: var(--muted);  border-color: rgba(74,96,112,0.3);   background: transparent; }
 
-.ac-top { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
-.ac-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.ac-dot.on  { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.ac-dot.off { background: var(--muted); }
-.ac-ip {
-  font-family: var(--mono); font-size: 10px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  flex: 1; min-width: 0;
-}
-.ac-count { font-family: var(--mono); font-size: 9px; color: var(--muted); flex-shrink: 0; }
+  .agent-btns { display: flex; gap: 4px; }
+  .agent-btn {
+    flex: 1; padding: 4px 0; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 1px; border: 1px solid; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; background: transparent; text-transform: uppercase;
+  }
+  .agent-btn.start { color: var(--green); border-color: rgba(0,255,136,0.3); }
+  .agent-btn.start:hover:not(:disabled) { background: rgba(0,255,136,0.12); }
+  .agent-btn.stop  { color: var(--red);   border-color: rgba(255,62,94,0.3); }
+  .agent-btn.stop:hover:not(:disabled)  { background: rgba(255,62,94,0.12); }
+  .agent-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-.ac-status {
-  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
-  padding: 1px 5px; border-radius: 2px; border: 1px solid;
-  display: inline-block; margin-bottom: 4px;
-}
-.ac-status.waiting    { color: var(--yellow); border-color: rgba(255,209,102,0.25); background: rgba(255,209,102,0.06); }
-.ac-status.monitoring { color: var(--green);  border-color: rgba(0,255,136,0.25);   background: rgba(0,255,136,0.06); }
-.ac-status.offline    { color: var(--muted);  border-color: rgba(74,96,112,0.2);    background: transparent; }
+  .broadcast-panel {
+    border-top: 1px solid var(--border); padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .broadcast-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 2px;
+  }
+  .broadcast-btn {
+    width: 100%; padding: 7px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; border: 1px solid; background: transparent;
+  }
+  .broadcast-btn.all-start { color: var(--green); border-color: rgba(0,255,136,0.4); }
+  .broadcast-btn.all-start:hover { background: rgba(0,255,136,0.1); }
+  .broadcast-btn.all-stop  { color: var(--red);   border-color: rgba(255,62,94,0.4); }
+  .broadcast-btn.all-stop:hover  { background: rgba(255,62,94,0.1); }
+  .filter-btn {
+    width: 100%; padding: 6px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+  }
+  .filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { border-color: var(--crimson2); color: var(--crimson2); background: rgba(139,26,26,0.1); }
 
-.ac-btns { display: flex; gap: 3px; }
-.ac-btn {
-  flex: 1; font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px;
-  padding: 2px 0; border: 1px solid; border-radius: 2px;
-  cursor: pointer; background: transparent; transition: all 0.12s;
-}
-.ac-btn.s { color: var(--green); border-color: rgba(0,255,136,0.25); }
-.ac-btn.s:hover:not(:disabled) { background: rgba(0,255,136,0.1); }
-.ac-btn.x { color: var(--red);   border-color: rgba(255,62,94,0.25); }
-.ac-btn.x:hover:not(:disabled) { background: rgba(255,62,94,0.1); }
-.ac-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  /* IES info en el sidebar inferior */
+  .ies-footer {
+    border-top: 1px solid var(--border); padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ies-footer img { height: 28px; opacity: 0.5; filter: grayscale(1) brightness(2); }
+  .ies-footer-text { font-family: var(--mono); font-size: 9px; color: var(--muted); line-height: 1.5; }
+  .ies-footer-text strong { color: rgba(139,26,26,0.8); }
 
-/* ── PANEL LOGS (fila 3) ────────────────────────────────────────────────────── */
-.logs-panel {
-  grid-row: 3;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;   /* CRÍTICO: contiene el scroll */
-  min-height: 0;      /* CRÍTICO: permite que flex shrink funcione */
-}
+  /* ── MAIN ── */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface);
+  }
+  .search-box {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 2px; padding: 6px 12px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.2s;
+  }
+  .search-box::placeholder { color: var(--muted); }
+  .search-box:focus { border-color: var(--accent); }
+  .toolbar-btn {
+    padding: 6px 12px; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
+  }
+  .toolbar-btn:hover        { border-color: var(--accent); color: var(--accent); }
+  .toolbar-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .event-count-badge { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-.logs-toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.search-box {
-  flex: 1; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 2px; padding: 5px 10px; color: var(--text);
-  font-family: var(--mono); font-size: 11px; outline: none; transition: border-color 0.2s;
-}
-.search-box::placeholder { color: var(--muted); }
-.search-box:focus { border-color: var(--accent); }
-.tb-btn {
-  padding: 5px 10px; background: transparent; border: 1px solid var(--border);
-  color: var(--muted); font-family: var(--mono); font-size: 10px;
-  letter-spacing: 1px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
-}
-.tb-btn:hover { border-color: var(--accent); color: var(--accent); }
-.tb-btn.on    { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.07); }
-.tb-btn.danger:hover { border-color: var(--red); color: var(--red); }
-.ev-badge { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
-
-/* Tabla con scroll REAL */
-.logs-scroll {
-  flex: 1;
-  overflow-y: scroll;   /* siempre visible */
-  overflow-x: hidden;
-  min-height: 0;
-}
-
-table { width: 100%; border-collapse: collapse; }
-thead th {
-  position: sticky; top: 0; z-index: 10;
-  background: var(--bg);
-  padding: 8px 14px; text-align: left;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted);
-  border-bottom: 1px solid var(--border); white-space: nowrap;
-}
-tbody tr {
-  border-bottom: 1px solid rgba(30,42,58,0.45);
-  transition: background 0.1s;
-}
-tbody tr:hover { background: rgba(0,212,255,0.035); }
-tbody tr.new-ev { animation: rowIn 0.2s ease both; }
-@keyframes rowIn { from{opacity:0;background:rgba(0,212,255,0.08)} to{opacity:1;background:transparent} }
-td {
-  padding: 6px 14px; font-family: var(--mono); font-size: 11px; vertical-align: middle;
-}
-td.c-ts    { color: var(--muted); white-space: nowrap; width: 155px; }
-td.c-agent { width: 130px; }
-td.c-type  { width: 145px; }
-td.c-data  { word-break: break-all; color: rgba(200,216,232,0.8); }
+  /* ── TABLE ── */
+  .table-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { position: sticky; top: 0; z-index: 10; background: var(--bg); }
+  th {
+    padding: 10px 16px; text-align: left; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(30,42,58,0.5);
+    transition: background 0.1s; animation: rowIn 0.2s ease both;
+  }
+  @keyframes rowIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+  tbody tr:hover { background: rgba(0,212,255,0.04); }
+  td { padding: 8px 16px; vertical-align: middle; font-family: var(--mono); font-size: 12px; }
+  td.col-ts    { color: var(--muted); white-space: nowrap; width: 160px; }
+  td.col-agent { width: 140px; }
+  td.col-type  { width: 150px; }
+  td.col-data  { word-break: break-all; }
 
 .abadge { display:inline-block; padding:2px 7px; border-radius:2px; font-size:10px; border:1px solid; }
 .tbadge {
@@ -403,44 +379,49 @@ td.c-data  { word-break: break-all; color: rgba(200,216,232,0.8); }
                 height:100%;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:2px;">
       SIN AGENTES CONECTADOS
     </div>
-  </div>
-</div>
+    <div class="ies-footer">
+      <img src="/static/logo.png" alt="IES La Sénia">
+      <div class="ies-footer-text">
+        <strong>IES La Sénia</strong><br>
+        Paiporta · SèniaEye v1.1
+      </div>
+    </div>
+  </aside>
 
-<!-- ── LOGS ───────────────────────────────────────────────────────────────────── -->
-<div class="logs-panel">
-  <div class="logs-toolbar">
-    <input class="search-box" id="search" type="text" placeholder="Buscar en logs: agente, tipo, datos...">
-    <button class="tb-btn on" id="btn-auto" onclick="toggleAuto()">AUTO ↑ ON</button>
-    <button class="tb-btn danger" onclick="clearLogs()">LIMPIAR</button>
-    <span class="ev-badge" id="ev-badge">0 / 0 eventos</span>
-  </div>
-  <div class="logs-scroll" id="logs-scroll">
-    <table id="log-table">
-      <thead>
-        <tr>
-          <th>TIMESTAMP</th>
-          <th>AGENTE</th>
-          <th>TIPO</th>
-          <th>DATOS</th>
-        </tr>
-      </thead>
-      <tbody id="log-body">
-        <tr id="empty-row">
-          <td colspan="4">
-            <div class="empty-logs">
-              <svg class="empty-eye" width="100" height="100" viewBox="0 0 44 44">
-                <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
-                <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
-                <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
-              </svg>
-              <p>ESPERANDO EVENTOS</p>
-              <small>SèniaEye · Todo está siendo observado</small>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <!-- ── MAIN ── -->
+  <main>
+    <div class="toolbar">
+      <input class="search-box" id="search-input" type="text" placeholder="Buscar: agente, tipo, datos...">
+      <button class="toolbar-btn" onclick="scrollToTop()">↑ RECIENTES</button>
+      <button class="toolbar-btn" id="btn-autoscroll" onclick="toggleAutoScroll()">AUTO: ON</button>
+      <button class="toolbar-btn danger" onclick="clearLog()">LIMPIAR</button>
+      <div class="event-count-badge" id="event-count-badge">0 / 0</div>
+    </div>
+    <div class="table-wrap" id="table-wrap">
+      <div class="empty-state" id="empty-state">
+        <!-- Ojo grande decorativo -->
+        <svg class="empty-eye" width="120" height="120" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+          <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
+          <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
+          <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
+          <circle fill="none" stroke="rgba(139,26,26,0.5)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+        </svg>
+        <p>ESPERANDO EVENTOS</p>
+        <small>SèniaEye · Todo está siendo observado</small>
+      </div>
+      <table id="log-table" style="display:none">
+        <thead>
+          <tr>
+            <th>TIMESTAMP</th>
+            <th>AGENTE</th>
+            <th>TIPO</th>
+            <th>DATOS</th>
+          </tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
 
 </div><!-- .app -->
@@ -628,12 +609,8 @@ function addEvent(ev, live) {
   if (S.allEvents.length > 2000) S.allEvents.length = 2000;
 
   if (live) {
-    if (passesFilter(ev)) {
-      S.shownEvents.unshift(ev);
-      prependRow(ev);
-      updateBadge();
-    }
-    if (S.autoScroll) document.getElementById('logs-scroll').scrollTop = 0;
+    if (eventPassesFilter(ev)) { state.filteredEvents.push(ev); appendRow(ev, true); updateCountBadge(); }
+    if (state.autoScroll) scrollToTop();
   }
 }
 
@@ -651,22 +628,12 @@ function applyFilters() {
 function rebuildTable() {
   const tbody = document.getElementById('log-body');
   tbody.innerHTML = '';
-  if (!S.shownEvents.length) {
-    tbody.innerHTML = `<tr id="empty-row"><td colspan="4">
-      <div class="empty-logs">
-        <svg class="empty-eye" width="100" height="100" viewBox="0 0 44 44">
-          <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
-          <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
-          <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
-        </svg>
-        <p>ESPERANDO EVENTOS</p>
-        <small>SèniaEye · Todo está siendo observado</small>
-      </div></td></tr>`;
-  } else {
-    S.shownEvents.forEach(ev => appendRowBottom(ev));
-  }
-  updateBadge();
-  if (S.autoScroll) document.getElementById('logs-scroll').scrollTop = 0;
+  const empty = document.getElementById('empty-state');
+  const table = document.getElementById('log-table');
+  if (!state.filteredEvents.length) { empty.style.display='flex'; table.style.display='none'; }
+  else { empty.style.display='none'; table.style.display=''; state.filteredEvents.forEach(ev => appendRow(ev, false)); }
+  updateCountBadge();
+  if (state.autoScroll) scrollToTop();
 }
 
 function prependRow(ev) {
@@ -693,11 +660,11 @@ function makeRow(ev, animate) {
   else if (ev.type==='broadcast_ack')  data = `cmd:${ev.command} | alcanzados:${ev.count}`;
   else if (ev.type==='dhcp_alert')     data = `⚠ ${ev.data?.alert||''} — ${ev.data?.server_ip||''}`;
   tr.innerHTML = `
-    <td class="c-ts">${ev.timestamp||'—'}</td>
-    <td class="c-agent"><span class="abadge" style="color:${color};border-color:${color}28;background:${color}10">${ev.agent_id||'—'}</span></td>
-    <td class="c-type"><span class="tbadge t-${ev.type}">${ev.type}</span></td>
-    <td class="c-data">${esc(data)}</td>`;
-  return tr;
+    <td class="col-ts">${ev.timestamp||'—'}</td>
+    <td class="col-agent"><span class="agent-badge" style="color:${color};border-color:${color}30;background:${color}10">${ev.agent_id||'—'}</span></td>
+    <td class="col-type"><span class="type-badge type-${ev.type}">${ev.type}</span></td>
+    <td class="col-data">${escHtml(dataStr)}</td>`;
+  tbody.prepend(tr);
 }
 
 function fmt(d)  { if(!d)return'—'; return typeof d==='string'?d:JSON.stringify(d); }
@@ -716,22 +683,12 @@ function updateBadge() {
   document.getElementById('ev-badge').textContent = `${S.shownEvents.length} / ${S.allEvents.length} eventos`;
   updateStats();
 }
-function toggleAuto() {
-  S.autoScroll = !S.autoScroll;
-  const b = document.getElementById('btn-auto');
-  b.textContent = `AUTO ↑ ${S.autoScroll?'ON':'OFF'}`;
-  b.className   = `tb-btn${S.autoScroll?' on':''}`;
-}
-function clearLogs() {
-  S.allEvents=[]; S.shownEvents=[];
-  Object.values(S.agents).forEach(a=>a.count=0);
-  rebuildTable(); renderGrid(); updateBadge();
-}
-function toast(msg,type='') {
-  const c=document.getElementById('toasts');
-  const t=document.createElement('div');
-  t.className=`toast ${type}`; t.textContent=msg;
-  c.appendChild(t); setTimeout(()=>t.remove(),3200);
+function scrollToTop() { const w=document.getElementById('table-wrap'); w.scrollTop=0; }
+function toggleAutoScroll() { state.autoScroll=!state.autoScroll; document.getElementById('btn-autoscroll').textContent=`AUTO: ${state.autoScroll?'ON':'OFF'}`; }
+function clearLog() {
+  state.allEvents=[]; state.filteredEvents=[];
+  Object.values(state.agents).forEach(a=>a.count=0);
+  rebuildTable(); renderAgentList(); updateCountBadge();
 }
 
 // Búsqueda
