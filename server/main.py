@@ -243,9 +243,8 @@ async def websocket_dashboard(websocket: WebSocket):
 
 
 # ── API REST: Internet (senia-firefox) ─────────────────────────────────────────
-
+"""
 def _get_aula() -> str:
-    """Obtiene el tercer octeto de la IP del servidor (número de aula)."""
     try:
         hostname = _socket.gethostname()
         ip = _socket.gethostbyname(hostname)
@@ -255,7 +254,6 @@ def _get_aula() -> str:
 
 
 def _run_senia(args: list[str]) -> str:
-    """Ejecuta senia-firefox con los argumentos dados y devuelve stdout."""
     result = subprocess.run(
         ["senia-firefox"] + args,
         capture_output=True, text=True, timeout=10
@@ -265,7 +263,6 @@ def _run_senia(args: list[str]) -> str:
 
 @app.get("/api/internet/status")
 async def api_inet_status():
-    """Consulta el estado de internet via: senia-firefox <aula> status"""
     aula = _get_aula()
     output = await asyncio.get_event_loop().run_in_executor(
         None, lambda: _run_senia([aula, "status"])
@@ -276,7 +273,6 @@ async def api_inet_status():
 
 @app.post("/api/internet/{value}")
 async def api_inet_set(value: int):
-    """Activa (1) o corta (0) internet via: senia-firefox <aula> <0|1>"""
     if value not in (0, 1):
         raise HTTPException(status_code=400, detail="Valor debe ser 0 o 1")
     aula = _get_aula()
@@ -289,7 +285,7 @@ async def api_inet_set(value: int):
     )
     on = "HAY INTERNET" in status_out.upper()
     return JSONResponse({"status": "on" if on else "off", "raw": status_out, "aula": aula})
-
+"""
 
 # ── API REST: Block List ───────────────────────────────────────────────────────
 

@@ -25,6 +25,7 @@ class ViolationChecker:
     
     def check_dns(self, domain: str) -> dict | None:
         if not domain or domain.lower() not in {d.lower() for d in self.policy.blocked_domains}:
+            print(f"Domain {domain} not in blocked domains: {self.policy.blocked_domains}")
             return None
         return {"event_type": "dns_violation", "description": f"Blocked DNS: {domain}"}
     
