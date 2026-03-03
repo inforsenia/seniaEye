@@ -40,9 +40,11 @@ class MonitorManager:
     #    self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
     #    self.block_list_monitor = BlockListMonitor()
         
-        self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
-                        ("Port", self.port_monitor), ("Interface", self.interface_monitor),
-                        ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
+        #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
+        #                ("Port", self.port_monitor), ("Interface", self.interface_monitor),
+        #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
+        self.monitors = [("DNS", self.dns_monitor)]
+
         logger.info("MonitorManager initialized")
     
     def update_policy(self, policy: MonitoringPolicy):
