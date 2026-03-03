@@ -29,22 +29,25 @@ class MonitorManager:
         self.interface = interface
         
         self.policy = MonitoringPolicy()
-        self.violation_checker = ViolationChecker(self.policy)
         
-        # Initialize port rules monitor first
+        # Initialize block list monitor first (needed by violation checker)
+        self.block_list_monitor = BlockListMonitor(server_url=server_url)
+        
+        # Pass block list monitor to violation checker
+        self.violation_checker = ViolationChecker(self.policy, self.block_list_monitor)
+        
+        # Initialize port rules monitor
         self.port_rules_monitor = PortRulesMonitor(server_url=server_url)
         
         self.dns_monitor = DNSMonitor(event_callback, self.violation_checker, machine_name)
     #    self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name)
     #    self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
     #    self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
-        self.block_list_monitor = BlockListMonitor()
         
         #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
         #                ("Port", self.port_monitor), ("Interface", self.interface_monitor),
         #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
         self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor)]
-        print(self.block_list_monitor.block_list.keys())
         
         logger.info("MonitorManager initialized")
     

@@ -21,9 +21,8 @@ class DNSMonitor:
         if packet.haslayer(DNSQR):
             qname = packet[DNSQR].qname.decode(errors="ignore")
             violation = self.violation_checker.check_dns(qname)
-            print(f"DNS query: {qname} - Violation: {violation}")
             if violation:
-                print(f"DNS violation detected: {violation}")
+                logger.info(f"DNS violation detected: {qname} - {violation['description']}")
                 evt = Event(
                     machine_name=self.machine_name,
                     event_type=violation["event_type"],
