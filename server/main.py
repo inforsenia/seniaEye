@@ -19,8 +19,8 @@ from server.database import (
 from server.domain_resolver import DomainResolver
 from server.port_rules_manager import PortRulesManager
 
-app = FastAPI()
-
+app = FastAPI() 
+ 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
