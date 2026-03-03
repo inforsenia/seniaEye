@@ -3,746 +3,607 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SèniaEye — Monitor</title>
+<title>SèniaEye — Monitor de Agentes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-/* ── RESET Y BASE ────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0b0e13;
+    --surface:  #111620;
+    --border:   #1e2a3a;
+    --accent:   #00d4ff;
+    --accent2:  #ff6b35;
+    --green:    #00ff88;
+    --red:      #ff3e5e;
+    --yellow:   #ffd166;
+    --text:     #c8d8e8;
+    --muted:    #4a6070;
+    --crimson:  #8b1a1a;   /* color corporativo La Sénia */
+    --crimson2: #b52020;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Barlow', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); min-height: 100vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
 
-:root {
-  --bg:       #0b0e13;
-  --surface:  #111620;
-  --surface2: #161d2a;
-  --border:   #1e2a3a;
-  --accent:   #00d4ff;
-  --green:    #00ff88;
-  --red:      #ff3e5e;
-  --yellow:   #ffd166;
-  --text:     #c8d8e8;
-  --muted:    #4a6070;
-  --crimson:  #8b1a1a;
-  --crimson2: #b52020;
-  --mono:     'Share Tech Mono', monospace;
-  --sans:     'Barlow', sans-serif;
-  --header-h: 56px;
-  --agents-h: 200px;  /* altura panel agentes */
-}
+  /* scanlines */
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  header, aside, main, .toast-container { position: relative; z-index: 1; }
 
-html, body {
-  height: 100%;
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-}
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; position: relative; gap: 20px;
+  }
+  /* línea brillante inferior con color corporativo */
+  header::after {
+    content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson2), var(--accent), var(--crimson2), transparent);
+    opacity: 0.7;
+  }
 
-/* scanlines sutiles */
-body::before {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg, transparent, transparent 2px,
-    rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
-  );
-}
+  /* Logo corporativo */
+  .brand {
+    display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+  }
+  .brand img {
+    height: 42px; width: auto;
+    filter: brightness(0) invert(1) sepia(1) saturate(2) hue-rotate(320deg) brightness(0.85);
+    /* convierte el logo a tono rojizo-oscuro que combine con el tema */
+    opacity: 0.9;
+  }
+  .brand-divider {
+    width: 1px; height: 36px; background: var(--border);
+  }
 
-/* ── LAYOUT PRINCIPAL ────────────────────────────────────────────────────────── */
-/* 3 filas: header fijo | panel agentes fijo | logs con scroll */
-.app {
-  display: grid;
-  grid-template-rows: var(--header-h) var(--agents-h) 1fr;
-  height: 100vh;
-  width: 100vw;
-}
+  /* Nombre de la app */
+  .app-name {
+    display: flex; flex-direction: column; line-height: 1.1;
+  }
+  .app-name .eye-title {
+    font-family: var(--mono); font-size: 20px; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+  .app-name .eye-title .senia-part { color: var(--crimson2); }
+  .app-name .eye-subtitle {
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; font-weight: 300;
+  }
 
-/* ── HEADER ──────────────────────────────────────────────────────────────────── */
-header {
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 20px;
-  background: var(--surface);
-  border-bottom: 2px solid transparent;
-  border-image: linear-gradient(90deg, transparent, var(--crimson2), var(--accent), var(--crimson2), transparent) 1;
-  z-index: 100;
-}
+  /* Ojo SVG animado */
+  .eye-icon {
+    position: relative; width: 44px; height: 44px; flex-shrink: 0;
+  }
+  .eye-svg { width: 100%; height: 100%; }
+  .eye-outer { fill: none; stroke: var(--crimson2); stroke-width: 1.5; opacity: 0.7; }
+  .eye-iris  { fill: none; stroke: var(--accent); stroke-width: 1.5;
+               animation: irisGlow 3s ease-in-out infinite; }
+  .eye-pupil { fill: var(--accent); animation: pupilPulse 3s ease-in-out infinite; }
+  .eye-scan  { fill: none; stroke: var(--crimson2); stroke-width: 0.8; opacity: 0;
+               animation: scanFlash 4s ease-in-out infinite; }
+  @keyframes irisGlow  { 0%,100%{stroke:var(--accent);opacity:1} 50%{stroke:#fff;opacity:0.6} }
+  @keyframes pupilPulse{ 0%,100%{r:3;opacity:1} 50%{r:2;opacity:0.5} }
+  @keyframes scanFlash { 0%,80%,100%{opacity:0} 85%,95%{opacity:0.8} }
 
-.brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.brand img {
-  height: 36px;
-  filter: brightness(0) invert(1) sepia(1) saturate(2) hue-rotate(320deg) brightness(0.85);
-  opacity: 0.9;
-}
-.brand-sep { width: 1px; height: 30px; background: var(--border); }
+  .header-stats { display: flex; gap: 24px; align-items: center; margin-left: auto; }
+  .stat-pill { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  .dot.green  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+  .dot.blue   { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .nav-sessions-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 4px 12px; border-radius: 2px; border: 1px solid var(--border);
+    color: var(--muted); text-decoration: none; transition: all 0.15s;
+  }
+  .nav-sessions-btn:hover { border-color: var(--crimson2); color: var(--crimson2); background: rgba(139,26,26,0.1); }
+  .ws-status { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 2px; border: 1px solid currentColor; }
+  .ws-status.connected    { color: var(--green); }
+  .ws-status.disconnected { color: var(--red); }
+  .ws-status.connecting   { color: var(--yellow); }
 
-.eye-wrap { display: flex; align-items: center; gap: 10px; }
-.eye-svg-sm { width: 36px; height: 36px; flex-shrink: 0; }
-.eye-outer { fill:none; stroke:var(--crimson2); stroke-width:1.5; opacity:0.8; }
-.eye-iris  { fill:none; stroke:var(--accent); stroke-width:1.5; animation: iG 3s ease-in-out infinite; }
-.eye-pupil { fill:var(--accent); animation: pP 3s ease-in-out infinite; }
-@keyframes iG { 0%,100%{opacity:1} 50%{opacity:0.5} }
-@keyframes pP { 0%,100%{r:2.5} 50%{r:1.5} }
+  /* ── LAYOUT ── */
+  .body-wrap { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
-.app-title { font-family: var(--mono); font-size: 18px; letter-spacing: 3px; line-height:1; }
-.app-title .s { color: var(--crimson2); }
-.app-title .e { color: var(--accent); text-shadow: 0 0 16px rgba(0,212,255,0.5); }
-.app-sub { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-top: 2px; }
+  /* ── SIDEBAR ── */
+  aside {
+    width: 240px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .aside-title {
+    padding: 12px 16px 10px; font-size: 10px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .agent-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .agent-item {
+    padding: 8px 14px; cursor: pointer;
+    border-left: 3px solid transparent; transition: all 0.15s;
+    border-bottom: 1px solid rgba(30,42,58,0.4);
+  }
+  .agent-item:hover    { background: rgba(0,212,255,0.05); }
+  .agent-item.selected { border-left-color: var(--crimson2); background: rgba(139,26,26,0.1); }
 
-/* Internet toggle en header */
-.inet-panel {
-  display: flex; align-items: center; gap: 8px;
-  margin-left: 24px;
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg);
-}
-.inet-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); }
-.inet-status {
-  font-family: var(--mono); font-size: 11px; font-weight: 700;
-  letter-spacing: 1px; padding: 2px 8px; border-radius: 2px;
-  border: 1px solid; min-width: 100px; text-align: center;
-  transition: all 0.3s;
-}
-.inet-status.on  { color: var(--green);  border-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.08); }
-.inet-status.off { color: var(--red);    border-color: rgba(255,62,94,0.4);  background: rgba(255,62,94,0.08); }
-.inet-status.checking { color: var(--yellow); border-color: rgba(255,209,102,0.4); background: rgba(255,209,102,0.08); }
-.inet-btn {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-  padding: 4px 10px; border-radius: 2px; border: 1px solid; cursor: pointer;
-  background: transparent; transition: all 0.15s; white-space: nowrap;
-}
-.inet-btn.give  { color: var(--green); border-color: rgba(0,255,136,0.4); }
-.inet-btn.give:hover  { background: rgba(0,255,136,0.12); }
-.inet-btn.revoke { color: var(--red);  border-color: rgba(255,62,94,0.4);  }
-.inet-btn.revoke:hover { background: rgba(255,62,94,0.12); }
-.inet-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .agent-row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .agent-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .agent-dot.offline { background: var(--muted); }
+  .agent-id { font-family: var(--mono); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-evcount { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 
-/* Stats + nav en header */
-.header-right { display: flex; align-items: center; gap: 16px; margin-left: auto; }
-.stat-chip { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; animation: dp 2s ease-in-out infinite; flex-shrink:0; }
-.dot.g { background:var(--green);  box-shadow:0 0 6px var(--green); }
-.dot.b { background:var(--accent); box-shadow:0 0 6px var(--accent); }
-@keyframes dp { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .agent-status-bar { display: flex; gap: 4px; margin-bottom: 6px; }
+  .status-badge {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 2px; border: 1px solid; text-transform: uppercase;
+  }
+  .status-badge.waiting    { color: var(--yellow); border-color: rgba(255,209,102,0.3); background: rgba(255,209,102,0.08); }
+  .status-badge.monitoring { color: var(--green);  border-color: rgba(0,255,136,0.3);   background: rgba(0,255,136,0.08); }
+  .status-badge.offline    { color: var(--muted);  border-color: rgba(74,96,112,0.3);   background: transparent; }
 
-.nav-btn {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-  padding: 4px 10px; border: 1px solid var(--border); border-radius: 2px;
-  color: var(--muted); text-decoration: none; transition: all 0.15s;
-}
-.nav-btn:hover { border-color: var(--crimson2); color: var(--crimson2); }
+  .agent-btns { display: flex; gap: 4px; }
+  .agent-btn {
+    flex: 1; padding: 4px 0; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 1px; border: 1px solid; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; background: transparent; text-transform: uppercase;
+  }
+  .agent-btn.start { color: var(--green); border-color: rgba(0,255,136,0.3); }
+  .agent-btn.start:hover:not(:disabled) { background: rgba(0,255,136,0.12); }
+  .agent-btn.stop  { color: var(--red);   border-color: rgba(255,62,94,0.3); }
+  .agent-btn.stop:hover:not(:disabled)  { background: rgba(255,62,94,0.12); }
+  .agent-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-.ws-pill {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-  padding: 3px 9px; border-radius: 2px; border: 1px solid currentColor;
-}
-.ws-pill.ok  { color: var(--green); }
-.ws-pill.err { color: var(--red); }
-.ws-pill.wait{ color: var(--yellow); }
+  .broadcast-panel {
+    border-top: 1px solid var(--border); padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .broadcast-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 2px;
+  }
+  .broadcast-btn {
+    width: 100%; padding: 7px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; border: 1px solid; background: transparent;
+  }
+  .broadcast-btn.all-start { color: var(--green); border-color: rgba(0,255,136,0.4); }
+  .broadcast-btn.all-start:hover { background: rgba(0,255,136,0.1); }
+  .broadcast-btn.all-stop  { color: var(--red);   border-color: rgba(255,62,94,0.4); }
+  .broadcast-btn.all-stop:hover  { background: rgba(255,62,94,0.1); }
+  .filter-btn {
+    width: 100%; padding: 6px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+  }
+  .filter-btn:hover  { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { border-color: var(--crimson2); color: var(--crimson2); background: rgba(139,26,26,0.1); }
 
-/* ── PANEL AGENTES (fila 2) ─────────────────────────────────────────────────── */
-.agents-panel {
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-}
+  /* IES info en el sidebar inferior */
+  .ies-footer {
+    border-top: 1px solid var(--border); padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ies-footer img { height: 28px; opacity: 0.5; filter: grayscale(1) brightness(2); }
+  .ies-footer-text { font-family: var(--mono); font-size: 9px; color: var(--muted); line-height: 1.5; }
+  .ies-footer-text strong { color: rgba(139,26,26,0.8); }
 
-.agents-header {
-  display: flex; align-items: center; gap: 12px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.agents-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); }
-.agents-header-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
-.ctrl-btn {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-  padding: 3px 10px; border: 1px solid; border-radius: 2px;
-  cursor: pointer; background: transparent; transition: all 0.15s;
-}
-.ctrl-btn.start-all { color: var(--green); border-color: rgba(0,255,136,0.35); }
-.ctrl-btn.start-all:hover { background: rgba(0,255,136,0.1); }
-.ctrl-btn.stop-all  { color: var(--red);   border-color: rgba(255,62,94,0.35); }
-.ctrl-btn.stop-all:hover  { background: rgba(255,62,94,0.1); }
-.ctrl-btn.filter-sel { color: var(--muted); border-color: var(--border); }
-.ctrl-btn.filter-sel.active { color: var(--crimson2); border-color: var(--crimson2); background: rgba(181,32,32,0.1); }
-.ctrl-btn.filter-sel:hover  { color: var(--accent); border-color: var(--accent); }
+  /* ── MAIN ── */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface);
+  }
+  .search-box {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 2px; padding: 6px 12px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.2s;
+  }
+  .search-box::placeholder { color: var(--muted); }
+  .search-box:focus { border-color: var(--accent); }
+  .toolbar-btn {
+    padding: 6px 12px; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
+  }
+  .toolbar-btn:hover        { border-color: var(--accent); color: var(--accent); }
+  .toolbar-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .event-count-badge { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-/* Grid de tarjetas */
-.agents-grid {
-  flex: 1;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-  padding: 6px 10px;
-  align-content: start;
-}
+  /* ── TABLE ── */
+  .table-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { position: sticky; top: 0; z-index: 10; background: var(--bg); }
+  th {
+    padding: 10px 16px; text-align: left; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(30,42,58,0.5);
+    transition: background 0.1s; animation: rowIn 0.2s ease both;
+  }
+  @keyframes rowIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+  tbody tr:hover { background: rgba(0,212,255,0.04); }
+  td { padding: 8px 16px; vertical-align: middle; font-family: var(--mono); font-size: 12px; }
+  td.col-ts    { color: var(--muted); white-space: nowrap; width: 160px; }
+  td.col-agent { width: 140px; }
+  td.col-type  { width: 150px; }
+  td.col-data  { word-break: break-all; }
 
-/* Tarjeta compacta de agente */
-.agent-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 5px 7px;
-  cursor: pointer;
-  transition: all 0.15s;
-  border-left: 3px solid transparent;
-  min-width: 0;
-}
-.agent-card:hover { border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.04); }
-.agent-card.selected { border-left-color: var(--crimson2); background: rgba(181,32,32,0.07); }
-.agent-card.monitoring { border-left-color: var(--green); }
+  .agent-badge { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 11px; border: 1px solid; }
+  .type-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 2px;
+    font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .type-event              { background:rgba(0,212,255,0.1);   color:var(--accent);   border:1px solid rgba(0,212,255,0.2); }
+  .type-agent_connected    { background:rgba(0,255,136,0.1);   color:var(--green);    border:1px solid rgba(0,255,136,0.2); }
+  .type-agent_disconnected { background:rgba(255,62,94,0.1);   color:var(--red);      border:1px solid rgba(255,62,94,0.2); }
+  .type-agent_status       { background:rgba(255,209,102,0.1); color:var(--yellow);   border:1px solid rgba(255,209,102,0.2); }
+  .type-command_ack        { background:rgba(139,26,26,0.15);  color:var(--crimson2); border:1px solid rgba(139,26,26,0.3); }
+  .type-broadcast_ack      { background:rgba(199,125,255,0.1); color:#c77dff;         border:1px solid rgba(199,125,255,0.2); }
 
-.ac-top { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
-.ac-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.ac-dot.on  { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.ac-dot.off { background: var(--muted); }
-.ac-ip {
-  font-family: var(--mono); font-size: 10px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  flex: 1; min-width: 0;
-}
-.ac-count { font-family: var(--mono); font-size: 9px; color: var(--muted); flex-shrink: 0; }
+  /* Watermark Big Brother */
+  .bb-watermark {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 4px;
+    color: rgba(139,26,26,0.12); text-transform: uppercase; pointer-events: none;
+    white-space: nowrap; z-index: 0;
+  }
 
-.ac-status {
-  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
-  padding: 1px 5px; border-radius: 2px; border: 1px solid;
-  display: inline-block; margin-bottom: 4px;
-}
-.ac-status.waiting    { color: var(--yellow); border-color: rgba(255,209,102,0.25); background: rgba(255,209,102,0.06); }
-.ac-status.monitoring { color: var(--green);  border-color: rgba(0,255,136,0.25);   background: rgba(0,255,136,0.06); }
-.ac-status.offline    { color: var(--muted);  border-color: rgba(74,96,112,0.2);    background: transparent; }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; gap: 16px; color: var(--muted);
+  }
+  /* Ojo grande en empty state */
+  .empty-eye { opacity: 0.15; animation: emptyEyePulse 4s ease-in-out infinite; }
+  @keyframes emptyEyePulse { 0%,100%{opacity:0.1;transform:scale(1)} 50%{opacity:0.2;transform:scale(1.04)} }
+  .empty-state p { font-family: var(--mono); font-size: 13px; letter-spacing: 3px; }
+  .empty-state small { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(139,26,26,0.5); }
 
-.ac-btns { display: flex; gap: 3px; }
-.ac-btn {
-  flex: 1; font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px;
-  padding: 2px 0; border: 1px solid; border-radius: 2px;
-  cursor: pointer; background: transparent; transition: all 0.12s;
-}
-.ac-btn.s { color: var(--green); border-color: rgba(0,255,136,0.25); }
-.ac-btn.s:hover:not(:disabled) { background: rgba(0,255,136,0.1); }
-.ac-btn.x { color: var(--red);   border-color: rgba(255,62,94,0.25); }
-.ac-btn.x:hover:not(:disabled) { background: rgba(255,62,94,0.1); }
-.ac-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* ── PANEL LOGS (fila 3) ────────────────────────────────────────────────────── */
-.logs-panel {
-  grid-row: 3;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;   /* CRÍTICO: contiene el scroll */
-  min-height: 0;      /* CRÍTICO: permite que flex shrink funcione */
-}
-
-.logs-toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.search-box {
-  flex: 1; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 2px; padding: 5px 10px; color: var(--text);
-  font-family: var(--mono); font-size: 11px; outline: none; transition: border-color 0.2s;
-}
-.search-box::placeholder { color: var(--muted); }
-.search-box:focus { border-color: var(--accent); }
-.tb-btn {
-  padding: 5px 10px; background: transparent; border: 1px solid var(--border);
-  color: var(--muted); font-family: var(--mono); font-size: 10px;
-  letter-spacing: 1px; cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
-}
-.tb-btn:hover { border-color: var(--accent); color: var(--accent); }
-.tb-btn.on    { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.07); }
-.tb-btn.danger:hover { border-color: var(--red); color: var(--red); }
-.ev-badge { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
-
-/* Tabla con scroll REAL */
-.logs-scroll {
-  flex: 1;
-  overflow-y: scroll;   /* siempre visible */
-  overflow-x: hidden;
-  min-height: 0;
-}
-
-table { width: 100%; border-collapse: collapse; }
-thead th {
-  position: sticky; top: 0; z-index: 10;
-  background: var(--bg);
-  padding: 8px 14px; text-align: left;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted);
-  border-bottom: 1px solid var(--border); white-space: nowrap;
-}
-tbody tr {
-  border-bottom: 1px solid rgba(30,42,58,0.45);
-  transition: background 0.1s;
-}
-tbody tr:hover { background: rgba(0,212,255,0.035); }
-tbody tr.new-ev { animation: rowIn 0.2s ease both; }
-@keyframes rowIn { from{opacity:0;background:rgba(0,212,255,0.08)} to{opacity:1;background:transparent} }
-td {
-  padding: 6px 14px; font-family: var(--mono); font-size: 11px; vertical-align: middle;
-}
-td.c-ts    { color: var(--muted); white-space: nowrap; width: 155px; }
-td.c-agent { width: 130px; }
-td.c-type  { width: 145px; }
-td.c-data  { word-break: break-all; color: rgba(200,216,232,0.8); }
-
-.abadge { display:inline-block; padding:2px 7px; border-radius:2px; font-size:10px; border:1px solid; }
-.tbadge {
-  display:inline-block; padding:2px 7px; border-radius:2px;
-  font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; border:1px solid;
-}
-.t-event              { background:rgba(0,212,255,0.1);   color:var(--accent);   border-color:rgba(0,212,255,0.2); }
-.t-agent_connected    { background:rgba(0,255,136,0.1);   color:var(--green);    border-color:rgba(0,255,136,0.2); }
-.t-agent_disconnected { background:rgba(255,62,94,0.1);   color:var(--red);      border-color:rgba(255,62,94,0.2); }
-.t-agent_status       { background:rgba(255,209,102,0.1); color:var(--yellow);   border-color:rgba(255,209,102,0.2); }
-.t-command_ack        { background:rgba(181,32,32,0.12);  color:var(--crimson2); border-color:rgba(181,32,32,0.3); }
-.t-broadcast_ack      { background:rgba(199,125,255,0.1); color:#c77dff;         border-color:rgba(199,125,255,0.2); }
-.t-dhcp_alert         { background:rgba(255,100,0,0.15);  color:#ff6400;         border-color:rgba(255,100,0,0.35); }
-
-/* Empty state */
-.empty-logs {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 60px 20px; gap: 14px; color: var(--muted);
-}
-.empty-eye { animation: eyeP 4s ease-in-out infinite; opacity: 0.12; }
-@keyframes eyeP { 0%,100%{opacity:0.1;transform:scale(1)} 50%{opacity:0.18;transform:scale(1.03)} }
-.empty-logs p { font-family: var(--mono); font-size: 12px; letter-spacing: 3px; }
-.empty-logs small { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(181,32,32,0.4); }
-
-/* Watermark */
-.watermark {
-  position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-  font-family: var(--mono); font-size: 9px; letter-spacing: 4px;
-  color: rgba(181,32,32,0.08); pointer-events: none; white-space: nowrap; z-index: 1;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-/* Toasts */
-.toasts {
-  position: fixed; bottom: 18px; right: 18px;
-  display: flex; flex-direction: column; gap: 6px; z-index: 9998;
-}
-.toast {
-  padding: 9px 14px; background: var(--surface); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 11px;
-  border-radius: 2px; max-width: 320px;
-  animation: tIn 0.2s ease, tOut 0.3s ease 2.7s both;
-}
-.toast.err { border-left-color: var(--red); }
-.toast.ok  { border-left-color: var(--green); }
-.toast.warn{ border-left-color: var(--yellow); }
-@keyframes tIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-@keyframes tOut { to{opacity:0;transform:translateY(8px)} }
+  .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast {
+    padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 12px;
+    border-radius: 2px; animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s both; max-width: 340px;
+  }
+  .toast.error   { border-left-color: var(--red); }
+  .toast.success { border-left-color: var(--green); }
+  .toast.warn    { border-left-color: var(--yellow); }
+  @keyframes toastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  @keyframes toastOut { to{opacity:0;transform:translateY(10px)} }
 </style>
 </head>
 <body>
-<div class="app">
 
-<!-- ── HEADER ─────────────────────────────────────────────────────────────────── -->
+<!-- ── HEADER ── -->
 <header>
+  <!-- Brand corporativo -->
   <div class="brand">
     <img src="/static/logo.png" alt="IES La Sénia">
-    <div class="brand-sep"></div>
+    <div class="brand-divider"></div>
   </div>
-  <div class="eye-wrap">
-    <svg class="eye-svg-sm" viewBox="0 0 44 44">
-      <path class="eye-outer" d="M4,22 Q22,4 40,22 Q22,40 4,22 Z"/>
-      <circle class="eye-iris" cx="22" cy="22" r="9"/>
-      <circle class="eye-pupil" cx="22" cy="22" r="2.5"/>
-      <circle fill="none" stroke="rgba(139,26,26,0.25)" stroke-width="0.8" cx="22" cy="22" r="20"/>
-    </svg>
-    <div>
-      <div class="app-title"><span class="s">Sènia</span><span class="e">Eye</span></div>
-      <div class="app-sub">Sistema de Vigilancia · IES La Sénia · Paiporta</div>
+
+  <!-- Nombre app + ojo -->
+  <div style="display:flex;align-items:center;gap:12px">
+    <!-- Ojo SVG animado -->
+    <div class="eye-icon">
+      <svg class="eye-svg" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+        <!-- Arco superior/inferior (forma de ojo) -->
+        <path class="eye-outer" d="M4,22 Q22,4 40,22 Q22,40 4,22 Z"/>
+        <!-- Iris -->
+        <circle class="eye-iris" cx="22" cy="22" r="9"/>
+        <!-- Pupila -->
+        <circle class="eye-pupil" cx="22" cy="22" r="3"/>
+        <!-- Líneas de scan -->
+        <line class="eye-scan" x1="4" y1="22" x2="40" y2="22"/>
+        <!-- Círculo exterior decorativo -->
+        <circle fill="none" stroke="rgba(139,26,26,0.3)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+        <!-- Marcas de reloj -->
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="22" y1="2" x2="22" y2="6"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="22" y1="38" x2="22" y2="42"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="2" y1="22" x2="6" y2="22"/>
+        <line fill="none" stroke="rgba(139,26,26,0.4)" stroke-width="0.8" x1="38" y1="22" x2="42" y2="22"/>
+      </svg>
+    </div>
+
+    <div class="app-name">
+      <span class="eye-title"><span class="senia-part">Sènia</span>Eye</span>
+      <span class="eye-subtitle">Sistema de Vigilancia · IES La Sénia</span>
     </div>
   </div>
 
-  <!-- Panel Internet -->
-  <div class="inet-panel">
-    <span class="inet-label">INTERNET</span>
-    <span class="inet-status checking" id="inet-status">COMPROBANDO...</span>
-    <button class="inet-btn give"   id="btn-inet-on"  onclick="setInternet(1)" disabled>▲ ACTIVAR</button>
-    <button class="inet-btn revoke" id="btn-inet-off" onclick="setInternet(0)" disabled>▼ CORTAR</button>
-  </div>
-
-  <div class="header-right">
-    <div class="stat-chip"><div class="dot g"></div><span id="cnt-online">0</span>&nbsp;ONLINE</div>
-    <div class="stat-chip"><div class="dot b"></div><span id="cnt-events">0</span>&nbsp;EVENTOS</div>
-    <a href="/sessions" class="nav-btn">◫ SESIONES</a>
-    <span class="ws-pill wait" id="ws-status">CONECTANDO</span>
+  <!-- Stats -->
+  <div class="header-stats">
+    <div class="stat-pill"><div class="dot green"></div><span id="agents-online">0</span>&nbsp;ONLINE</div>
+    <div class="stat-pill"><div class="dot blue"></div><span id="total-events">0</span>&nbsp;EVENTOS</div>
+    <a href="/sessions" class="nav-sessions-btn">◫ SESIONES</a>
+    <div class="ws-status connecting" id="ws-status">CONECTANDO...</div>
   </div>
 </header>
 
-<!-- ── PANEL AGENTES ──────────────────────────────────────────────────────────── -->
-<div class="agents-panel">
-  <div class="agents-header">
-    <span class="agents-title">◈ AGENTES SUPERVISADOS</span>
-    <div class="agents-header-right">
-      <button class="ctrl-btn start-all" onclick="broadcastCmd('START_MONITORING')">▶ INICIAR TODOS</button>
-      <button class="ctrl-btn stop-all"  onclick="broadcastCmd('STOP_MONITORING')">■ DETENER TODOS</button>
-      <button class="ctrl-btn filter-sel" id="btn-filter" onclick="toggleFilter()">FILTRAR AGENTE</button>
+<div class="body-wrap">
+  <!-- ── SIDEBAR ── -->
+  <aside>
+    <div class="aside-title">Agentes supervisados</div>
+    <div class="agent-list" id="agent-list">
+      <div style="padding:20px 16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Sin agentes</div>
     </div>
-  </div>
-  <div class="agents-grid" id="agents-grid">
-    <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;
-                height:100%;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:2px;">
-      SIN AGENTES CONECTADOS
+    <div class="broadcast-panel">
+      <div class="broadcast-title">◈ Control global</div>
+      <button class="broadcast-btn all-start" onclick="broadcastCommand('START_MONITORING')">▶ INICIAR TODOS</button>
+      <button class="broadcast-btn all-stop"  onclick="broadcastCommand('STOP_MONITORING')">■ DETENER TODOS</button>
+      <button class="filter-btn" id="btn-filter" onclick="toggleFilter()">FILTRAR SELECCIONADO</button>
     </div>
-  </div>
+    <div class="ies-footer">
+      <img src="/static/logo.png" alt="IES La Sénia">
+      <div class="ies-footer-text">
+        <strong>IES La Sénia</strong><br>
+        Paiporta · SèniaEye v1.1
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main>
+    <div class="toolbar">
+      <input class="search-box" id="search-input" type="text" placeholder="Buscar: agente, tipo, datos...">
+      <button class="toolbar-btn" onclick="scrollToTop()">↑ RECIENTES</button>
+      <button class="toolbar-btn" id="btn-autoscroll" onclick="toggleAutoScroll()">AUTO: ON</button>
+      <button class="toolbar-btn danger" onclick="clearLog()">LIMPIAR</button>
+      <div class="event-count-badge" id="event-count-badge">0 / 0</div>
+    </div>
+    <div class="table-wrap" id="table-wrap">
+      <div class="empty-state" id="empty-state">
+        <!-- Ojo grande decorativo -->
+        <svg class="empty-eye" width="120" height="120" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+          <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
+          <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
+          <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
+          <circle fill="none" stroke="rgba(139,26,26,0.5)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+        </svg>
+        <p>ESPERANDO EVENTOS</p>
+        <small>SèniaEye · Todo está siendo observado</small>
+      </div>
+      <table id="log-table" style="display:none">
+        <thead>
+          <tr>
+            <th>TIMESTAMP</th>
+            <th>AGENTE</th>
+            <th>TIPO</th>
+            <th>DATOS</th>
+          </tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
 
-<!-- ── LOGS ───────────────────────────────────────────────────────────────────── -->
-<div class="logs-panel">
-  <div class="logs-toolbar">
-    <input class="search-box" id="search" type="text" placeholder="Buscar en logs: agente, tipo, datos...">
-    <button class="tb-btn on" id="btn-auto" onclick="toggleAuto()">AUTO ↑ ON</button>
-    <button class="tb-btn danger" onclick="clearLogs()">LIMPIAR</button>
-    <span class="ev-badge" id="ev-badge">0 / 0 eventos</span>
-  </div>
-  <div class="logs-scroll" id="logs-scroll">
-    <table id="log-table">
-      <thead>
-        <tr>
-          <th>TIMESTAMP</th>
-          <th>AGENTE</th>
-          <th>TIPO</th>
-          <th>DATOS</th>
-        </tr>
-      </thead>
-      <tbody id="log-body">
-        <tr id="empty-row">
-          <td colspan="4">
-            <div class="empty-logs">
-              <svg class="empty-eye" width="100" height="100" viewBox="0 0 44 44">
-                <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
-                <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
-                <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
-              </svg>
-              <p>ESPERANDO EVENTOS</p>
-              <small>SèniaEye · Todo está siendo observado</small>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<!-- Watermark Big Brother -->
+<div class="bb-watermark">◈ &nbsp; Big Brother is watching &nbsp; · &nbsp; SèniaEye &nbsp; · &nbsp; IES La Sénia Paiporta &nbsp; ◈</div>
 
-</div><!-- .app -->
-
-<div class="watermark">◈ &nbsp; Big Brother is watching &nbsp; · &nbsp; SèniaEye &nbsp; · &nbsp; IES La Sénia Paiporta &nbsp; ◈</div>
-<div class="toasts" id="toasts"></div>
+<div class="toast-container" id="toast-container"></div>
 
 <script>
-// ── Constantes ─────────────────────────────────────────────────────────────────
-const CMD_START = 'START_MONITORING';
-const CMD_STOP  = 'STOP_MONITORING';
-const COLORS = ['#00d4ff','#ff6b35','#00ff88','#ffd166','#c77dff',
-                '#ff9f1c','#06d6a0','#ef476f','#118ab2','#f4a261',
-                '#e9c46a','#2a9d8f','#e76f51','#457b9d','#a8dadc'];
+const CMD_START = "START_MONITORING";
+const CMD_STOP  = "STOP_MONITORING";
+const COLORS = ['#00d4ff','#ff6b35','#00ff88','#ffd166','#c77dff','#ff9f1c','#06d6a0','#ef476f','#118ab2','#f4a261'];
 let colorIdx = 0;
 
-// ── Estado ─────────────────────────────────────────────────────────────────────
-const S = {
+const state = {
   ws: null,
-  agents: {},           // id → {online, status, count, color}
+  agents: {},
   allEvents: [],
-  shownEvents: [],
+  filteredEvents: [],
   selectedAgent: null,
-  filterActive: false,
-  searchQ: '',
+  filterSelected: false,
+  searchQuery: '',
   autoScroll: true,
-  inetBusy: false,
 };
 
-// ── WebSocket ──────────────────────────────────────────────────────────────────
-function wsConnect() {
+function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  S.ws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
-  S.ws.onopen    = () => { wsStatus('ok','CONECTADO'); toast('Dashboard conectado','ok'); };
-  S.ws.onclose   = () => { wsStatus('err','DESCONECTADO'); toast('Reconectando...','err'); setTimeout(wsConnect,3000); };
-  S.ws.onerror   = () => wsStatus('err','ERROR');
-  S.ws.onmessage = e  => onMsg(JSON.parse(e.data));
+  state.ws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
+  state.ws.onopen    = () => { setWsStatus('connected','CONECTADO'); toast('SèniaEye conectado al servidor','success'); };
+  state.ws.onclose   = () => { setWsStatus('disconnected','DESCONECTADO'); toast('Reconectando...','error'); setTimeout(connect,3000); };
+  state.ws.onerror   = () => setWsStatus('disconnected','ERROR');
+  state.ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 }
 
-function onMsg(m) {
-  if (m.type === 'snapshot') {
-    Object.entries(m.agents).forEach(([id,st]) => ensureAgent(id,true,st));
-    m.events.forEach(ev => addEvent(ev,false));
-    applyFilters(); renderGrid(); return;
+function handleMessage(msg) {
+  if (msg.type === 'snapshot') {
+    Object.entries(msg.agents).forEach(([id, status]) => ensureAgent(id, true, status));
+    msg.events.forEach(ev => addEvent(ev, false));
+    applyFilters(); renderAgentList(); return;
   }
-  if (m.type === 'agent_connected') {
-    ensureAgent(m.agent_id,true,'waiting');
-    addEvent(m,true); renderGrid(); updateStats();
-    toast(`Conectado: ${m.agent_id}`,'ok'); return;
+  if (msg.type === 'agent_connected') {
+    ensureAgent(msg.agent_id, true, 'waiting');
+    addEvent(msg, true); renderAgentList(); updateStats();
+    toast(`Agente conectado: ${msg.agent_id}`, 'success'); return;
   }
-  if (m.type === 'agent_disconnected') {
-    if (S.agents[m.agent_id]) { S.agents[m.agent_id].online=false; S.agents[m.agent_id].status='offline'; }
-    addEvent(m,true); renderGrid(); updateStats();
-    toast(`Desconectado: ${m.agent_id}`,'err'); return;
+  if (msg.type === 'agent_disconnected') {
+    if (state.agents[msg.agent_id]) { state.agents[msg.agent_id].online = false; state.agents[msg.agent_id].status = 'offline'; }
+    addEvent(msg, true); renderAgentList(); updateStats();
+    toast(`Agente desconectado: ${msg.agent_id}`, 'error'); return;
   }
-  if (m.type === 'agent_status') {
-    if (S.agents[m.agent_id]) S.agents[m.agent_id].status = m.status;
-    addEvent(m,true); renderGrid(); return;
+  if (msg.type === 'agent_status') {
+    if (state.agents[msg.agent_id]) state.agents[msg.agent_id].status = msg.status;
+    addEvent(msg, true); renderAgentList(); return;
   }
-  if (m.type === 'event')         { ensureAgent(m.agent_id,true); addEvent(m,true); return; }
-  if (m.type === 'command_ack')   {
-    addEvent(m,true);
-    toast(`${m.command==='START_MONITORING'?'START':'STOP'} → ${m.agent_id}: ${m.success?'OK':'sin agente'}`, m.success?'ok':'err');
-    return;
+  if (msg.type === 'event') {
+    ensureAgent(msg.agent_id, true);
+    addEvent(msg, true); return;
   }
-  if (m.type === 'broadcast_ack') {
-    addEvent(m,true);
-    toast(`${m.command==='START_MONITORING'?'INICIAR':'DETENER'} TODOS: ${m.count} agentes`,'ok');
-    return;
+  if (msg.type === 'command_ack') {
+    addEvent(msg, true);
+    const label = msg.command === CMD_START ? '▶ START' : '■ STOP';
+    toast(`${label} → ${msg.agent_id}: ${msg.success ? 'enviado' : 'no disponible'}`, msg.success ? 'success' : 'error'); return;
+  }
+  if (msg.type === 'broadcast_ack') {
+    addEvent(msg, true);
+    const label = msg.command === CMD_START ? '▶ INICIAR TODOS' : '■ DETENER TODOS';
+    toast(`${label}: ${msg.count} agentes alcanzados`, 'success'); return;
   }
 }
 
-// ── Agentes ────────────────────────────────────────────────────────────────────
-function ensureAgent(id,online,status) {
-  if (!S.agents[id]) {
-    S.agents[id] = {online,status:status||'waiting',count:0,color:COLORS[colorIdx++%COLORS.length]};
+function ensureAgent(id, online, status) {
+  if (!state.agents[id]) {
+    state.agents[id] = { online, status: status || 'waiting', count: 0, color: COLORS[colorIdx++ % COLORS.length] };
   } else {
-    S.agents[id].online = online;
-    if (status) S.agents[id].status = status;
+    state.agents[id].online = online;
+    if (status) state.agents[id].status = status;
   }
 }
 
-function renderGrid() {
-  const grid = document.getElementById('agents-grid');
-  const ids  = Object.keys(S.agents);
+function renderAgentList() {
+  const el = document.getElementById('agent-list');
+  const ids = Object.keys(state.agents);
   if (!ids.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;
-      height:100%;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:2px;">
-      SIN AGENTES CONECTADOS</div>`;
+    el.innerHTML = '<div style="padding:20px 16px;color:var(--muted);font-family:var(--mono);font-size:11px;">Sin agentes conectados</div>';
     return;
   }
-  grid.innerHTML = ids.map(id => {
-    const ag  = S.agents[id];
-    const sel = S.selectedAgent === id;
-    const stL = ag.online ? ag.status : 'offline';
-    const canS = ag.online && ag.status !== 'monitoring';
-    const canX = ag.online && ag.status === 'monitoring';
-    // Mostrar solo último octeto de IP para ahorrar espacio
-    const label = id.includes('.') ? id.split('.').slice(-2).join('.') : id;
-    return `<div class="agent-card ${sel?'selected':''} ${stL==='monitoring'?'monitoring':''}"
-                 onclick="selectAgent('${id}')">
-      <div class="ac-top">
-        <div class="ac-dot ${ag.online?'on':'off'}"></div>
-        <span class="ac-ip" style="color:${ag.color}" title="${id}">${label}</span>
-        <span class="ac-count">${ag.count}</span>
-      </div>
-      <div><span class="ac-status ${stL}">${stL}</span></div>
-      <div class="ac-btns">
-        <button class="ac-btn s" ${canS?'':'disabled'}
-          onclick="event.stopPropagation();sendCmd('${id}','${CMD_START}')">▶</button>
-        <button class="ac-btn x" ${canX?'':'disabled'}
-          onclick="event.stopPropagation();sendCmd('${id}','${CMD_STOP}')">■</button>
-      </div>
-    </div>`;
+  el.innerHTML = ids.map(id => {
+    const ag = state.agents[id];
+    const isSelected = state.selectedAgent === id;
+    const statusLabel = ag.online ? ag.status : 'offline';
+    const canStart = ag.online && ag.status !== 'monitoring';
+    const canStop  = ag.online && ag.status === 'monitoring';
+    return `
+      <div class="agent-item ${isSelected ? 'selected' : ''}" onclick="selectAgent('${id}')">
+        <div class="agent-row1">
+          <div class="agent-dot ${ag.online ? 'online' : 'offline'}"></div>
+          <span class="agent-id" style="color:${ag.color}">${id}</span>
+          <span class="agent-evcount">${ag.count}</span>
+        </div>
+        <div class="agent-status-bar">
+          <span class="status-badge ${statusLabel}">${statusLabel}</span>
+        </div>
+        <div class="agent-btns">
+          <button class="agent-btn start" ${canStart?'':'disabled'}
+            onclick="event.stopPropagation();sendCommand('${id}','${CMD_START}')">▶ START</button>
+          <button class="agent-btn stop" ${canStop?'':'disabled'}
+            onclick="event.stopPropagation();sendCommand('${id}','${CMD_STOP}')">■ STOP</button>
+        </div>
+      </div>`;
   }).join('');
   updateStats();
 }
 
 function selectAgent(id) {
-  S.selectedAgent = S.selectedAgent===id ? null : id;
-  if (!S.selectedAgent) { S.filterActive=false; document.getElementById('btn-filter').classList.remove('active'); }
-  renderGrid(); applyFilters();
+  state.selectedAgent = state.selectedAgent === id ? null : id;
+  if (!state.selectedAgent) { state.filterSelected = false; document.getElementById('btn-filter').classList.remove('active'); }
+  renderAgentList(); applyFilters();
 }
 
 function toggleFilter() {
-  if (!S.selectedAgent) { toast('Selecciona primero un agente','warn'); return; }
-  S.filterActive = !S.filterActive;
-  document.getElementById('btn-filter').classList.toggle('active', S.filterActive);
+  if (!state.selectedAgent) { toast('Selecciona primero un agente', 'warn'); return; }
+  state.filterSelected = !state.filterSelected;
+  document.getElementById('btn-filter').classList.toggle('active', state.filterSelected);
   applyFilters();
 }
 
-// ── Comandos ───────────────────────────────────────────────────────────────────
-function sendCmd(agentId, cmd) {
-  if (!S.ws || S.ws.readyState!==WebSocket.OPEN) { toast('Sin conexión','err'); return; }
-  S.ws.send(JSON.stringify({action:'send_command',agent_id:agentId,command:cmd}));
-}
-function broadcastCmd(cmd) {
-  if (!S.ws || S.ws.readyState!==WebSocket.OPEN) { toast('Sin conexión','err'); return; }
-  if (!Object.values(S.agents).some(a=>a.online)) { toast('Sin agentes online','warn'); return; }
-  S.ws.send(JSON.stringify({action:'broadcast_command',command:cmd}));
+function sendCommand(agentId, command) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { toast('Sin conexión con el servidor', 'error'); return; }
+  state.ws.send(JSON.stringify({ action: 'send_command', agent_id: agentId, command }));
 }
 
-// ── Internet ───────────────────────────────────────────────────────────────────
-async function checkInternet() {
-  setInetUI('checking','COMPROBANDO...',true,true);
-  try {
-    const r = await fetch('/api/internet/status');
-    const d = await r.json();
-    const on = d.status === 'on';
-    setInetUI(on?'on':'off', on?'HAY INTERNET':'NO HAY INTERNET', false, false);
-  } catch(e) {
-    setInetUI('off','ERROR',false,false);
-  }
+function broadcastCommand(command) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) { toast('Sin conexión con el servidor', 'error'); return; }
+  const online = Object.values(state.agents).filter(a => a.online).length;
+  if (!online) { toast('No hay agentes conectados', 'warn'); return; }
+  state.ws.send(JSON.stringify({ action: 'broadcast_command', command }));
 }
 
-async function setInternet(val) {
-  if (S.inetBusy) return;
-  S.inetBusy = true;
-  setInetUI('checking', val?'ACTIVANDO...':'CORTANDO...', true, true);
-  try {
-    const r = await fetch(`/api/internet/${val}`, {method:'POST'});
-    const d = await r.json();
-    const on = d.status === 'on';
-    setInetUI(on?'on':'off', on?'HAY INTERNET':'NO HAY INTERNET', false, false);
-    toast(on?'Internet activado':'Internet cortado', on?'ok':'warn');
-  } catch(e) {
-    toast('Error al cambiar internet','err');
-    await checkInternet();
-  }
-  S.inetBusy = false;
-}
-
-function setInetUI(cls, label, disOn, disOff) {
-  const el = document.getElementById('inet-status');
-  el.className = `inet-status ${cls}`;
-  el.textContent = label;
-  document.getElementById('btn-inet-on').disabled  = disOn;
-  document.getElementById('btn-inet-off').disabled = disOff;
-}
-
-// ── Eventos ────────────────────────────────────────────────────────────────────
 function addEvent(ev, live) {
-  if (S.agents[ev.agent_id]) S.agents[ev.agent_id].count++;
-  S.allEvents.unshift(ev);  // unshift = más recientes primero en el array
-  if (S.allEvents.length > 2000) S.allEvents.length = 2000;
-
+  if (state.agents[ev.agent_id]) state.agents[ev.agent_id].count++;
+  state.allEvents.push(ev);
+  if (state.allEvents.length > 2000) state.allEvents.splice(0, 200);
   if (live) {
-    if (passesFilter(ev)) {
-      S.shownEvents.unshift(ev);
-      prependRow(ev);
-      updateBadge();
-    }
-    if (S.autoScroll) document.getElementById('logs-scroll').scrollTop = 0;
+    if (eventPassesFilter(ev)) { state.filteredEvents.push(ev); appendRow(ev, true); updateCountBadge(); }
+    if (state.autoScroll) scrollToTop();
   }
 }
 
-function passesFilter(ev) {
-  if (S.filterActive && S.selectedAgent && ev.agent_id !== S.selectedAgent) return false;
-  if (S.searchQ && !JSON.stringify(ev).toLowerCase().includes(S.searchQ)) return false;
+function eventPassesFilter(ev) {
+  if (state.filterSelected && state.selectedAgent && ev.agent_id !== state.selectedAgent) return false;
+  if (state.searchQuery && !JSON.stringify(ev).toLowerCase().includes(state.searchQuery.toLowerCase())) return false;
   return true;
 }
 
 function applyFilters() {
-  S.shownEvents = S.allEvents.filter(passesFilter);
+  state.filteredEvents = state.allEvents.filter(eventPassesFilter);
   rebuildTable();
 }
 
 function rebuildTable() {
   const tbody = document.getElementById('log-body');
   tbody.innerHTML = '';
-  if (!S.shownEvents.length) {
-    tbody.innerHTML = `<tr id="empty-row"><td colspan="4">
-      <div class="empty-logs">
-        <svg class="empty-eye" width="100" height="100" viewBox="0 0 44 44">
-          <path fill="none" stroke="var(--crimson2)" stroke-width="1" d="M2,22 Q22,2 42,22 Q22,42 2,22 Z"/>
-          <circle fill="none" stroke="var(--accent)" stroke-width="1" cx="22" cy="22" r="10"/>
-          <circle fill="var(--accent)" cx="22" cy="22" r="4"/>
-        </svg>
-        <p>ESPERANDO EVENTOS</p>
-        <small>SèniaEye · Todo está siendo observado</small>
-      </div></td></tr>`;
-  } else {
-    S.shownEvents.forEach(ev => appendRowBottom(ev));
-  }
-  updateBadge();
-  if (S.autoScroll) document.getElementById('logs-scroll').scrollTop = 0;
+  const empty = document.getElementById('empty-state');
+  const table = document.getElementById('log-table');
+  if (!state.filteredEvents.length) { empty.style.display='flex'; table.style.display='none'; }
+  else { empty.style.display='none'; table.style.display=''; state.filteredEvents.forEach(ev => appendRow(ev, false)); }
+  updateCountBadge();
+  if (state.autoScroll) scrollToTop();
 }
 
-function prependRow(ev) {
-  // Quitar empty state si existe
-  const emp = document.getElementById('empty-row');
-  if (emp) emp.remove();
+function appendRow(ev, animate) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('log-table').style.display = '';
   const tbody = document.getElementById('log-body');
-  const tr = makeRow(ev, true);
-  tbody.insertBefore(tr, tbody.firstChild);
-}
-
-function appendRowBottom(ev) {
-  document.getElementById('log-body').appendChild(makeRow(ev, false));
-}
-
-function makeRow(ev, animate) {
-  const tr    = document.createElement('tr');
-  if (animate) tr.classList.add('new-ev');
-  const color = S.agents[ev.agent_id]?.color || '#888';
-  let data = '';
-  if (ev.type==='event')          data = fmt(ev.data);
-  else if (ev.type==='agent_status')   data = `estado → ${ev.status}`;
-  else if (ev.type==='command_ack')    data = `cmd:${ev.command} | ok:${ev.success}`;
-  else if (ev.type==='broadcast_ack')  data = `cmd:${ev.command} | alcanzados:${ev.count}`;
-  else if (ev.type==='dhcp_alert')     data = `⚠ ${ev.data?.alert||''} — ${ev.data?.server_ip||''}`;
+  const tr = document.createElement('tr');
+  const color = state.agents[ev.agent_id]?.color || '#888';
+  let dataStr = '';
+  if (ev.type === 'event')           dataStr = formatData(ev.data);
+  else if (ev.type === 'agent_status')    dataStr = `estado → ${ev.status}`;
+  else if (ev.type === 'command_ack')     dataStr = `cmd: ${ev.command}  |  éxito: ${ev.success}`;
+  else if (ev.type === 'broadcast_ack')   dataStr = `cmd: ${ev.command}  |  alcanzados: ${ev.count}  [${(ev.reached||[]).join(', ')}]`;
   tr.innerHTML = `
-    <td class="c-ts">${ev.timestamp||'—'}</td>
-    <td class="c-agent"><span class="abadge" style="color:${color};border-color:${color}28;background:${color}10">${ev.agent_id||'—'}</span></td>
-    <td class="c-type"><span class="tbadge t-${ev.type}">${ev.type}</span></td>
-    <td class="c-data">${esc(data)}</td>`;
-  return tr;
+    <td class="col-ts">${ev.timestamp||'—'}</td>
+    <td class="col-agent"><span class="agent-badge" style="color:${color};border-color:${color}30;background:${color}10">${ev.agent_id||'—'}</span></td>
+    <td class="col-type"><span class="type-badge type-${ev.type}">${ev.type}</span></td>
+    <td class="col-data">${escHtml(dataStr)}</td>`;
+  tbody.prepend(tr);
 }
 
-function fmt(d)  { if(!d)return'—'; return typeof d==='string'?d:JSON.stringify(d); }
-function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function formatData(d) { if(!d) return '—'; return typeof d==='string'?d:JSON.stringify(d); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── UI helpers ─────────────────────────────────────────────────────────────────
-function wsStatus(cls,txt) {
-  const e=document.getElementById('ws-status');
-  e.className=`ws-pill ${cls}`; e.textContent=txt;
-}
+function setWsStatus(cls, text) { const e=document.getElementById('ws-status'); e.className=`ws-status ${cls}`; e.textContent=text; }
 function updateStats() {
-  document.getElementById('cnt-online').textContent = Object.values(S.agents).filter(a=>a.online).length;
-  document.getElementById('cnt-events').textContent = S.allEvents.length;
+  document.getElementById('agents-online').textContent = Object.values(state.agents).filter(a=>a.online).length;
+  document.getElementById('total-events').textContent  = state.allEvents.length;
 }
-function updateBadge() {
-  document.getElementById('ev-badge').textContent = `${S.shownEvents.length} / ${S.allEvents.length} eventos`;
+function updateCountBadge() {
+  document.getElementById('event-count-badge').textContent = `${state.filteredEvents.length} / ${state.allEvents.length}`;
   updateStats();
 }
-function toggleAuto() {
-  S.autoScroll = !S.autoScroll;
-  const b = document.getElementById('btn-auto');
-  b.textContent = `AUTO ↑ ${S.autoScroll?'ON':'OFF'}`;
-  b.className   = `tb-btn${S.autoScroll?' on':''}`;
+function scrollToTop() { const w=document.getElementById('table-wrap'); w.scrollTop=0; }
+function toggleAutoScroll() { state.autoScroll=!state.autoScroll; document.getElementById('btn-autoscroll').textContent=`AUTO: ${state.autoScroll?'ON':'OFF'}`; }
+function clearLog() {
+  state.allEvents=[]; state.filteredEvents=[];
+  Object.values(state.agents).forEach(a=>a.count=0);
+  rebuildTable(); renderAgentList(); updateCountBadge();
 }
-function clearLogs() {
-  S.allEvents=[]; S.shownEvents=[];
-  Object.values(S.agents).forEach(a=>a.count=0);
-  rebuildTable(); renderGrid(); updateBadge();
-}
-function toast(msg,type='') {
-  const c=document.getElementById('toasts');
-  const t=document.createElement('div');
-  t.className=`toast ${type}`; t.textContent=msg;
-  c.appendChild(t); setTimeout(()=>t.remove(),3200);
-}
+document.getElementById('search-input').addEventListener('input', e => { state.searchQuery=e.target.value; applyFilters(); });
 
-// Búsqueda
-document.getElementById('search').addEventListener('input', e => {
-  S.searchQ = e.target.value.toLowerCase(); applyFilters();
-});
-
-// ── Init ───────────────────────────────────────────────────────────────────────
-wsConnect();
-checkInternet();
-setInterval(checkInternet, 30000);  // refresco cada 30s
+connect();
 </script>
 </body>
 </html>
