@@ -1,8 +1,10 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+.from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import json
 import asyncio
+import subprocess
+import socket as _socket
 from datetime import datetime
 from pathlib import Path
 import os
@@ -16,8 +18,8 @@ from server.database import (
 from server.domain_resolver import DomainResolver
 from server.port_rules_manager import PortRulesManager
 
-app = FastAPI() 
- 
+app = FastAPI()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,34 +34,36 @@ resolver_timestamp: str = ""
 # ── Port Rules ─────────────────────────────────────────────────────────────────
 port_rules_manager: PortRulesManager = None
 
+
 def _load_blocked_domains():
     """Load and resolve blocked domains at server boot."""
     global resolved_domains, resolver_timestamp
-    
+
     blocked_domains_file = Path(os.path.dirname(os.path.abspath(__file__))) / "blocked_domains.txt"
-    
+
     if not blocked_domains_file.exists():
         logger.warning(f"blocked_domains.txt not found at {blocked_domains_file}")
         return
-    
+
     try:
         with open(blocked_domains_file, 'r') as f:
             domains = [line.strip() for line in f if line.strip()]
-        
+
         if not domains:
             logger.warning("blocked_domains.txt is empty")
             return
-        
+
         logger.info(f"[BOOT] Loading {len(domains)} domain(s)")
         resolver = DomainResolver()
         resolved_domains = resolver.resolve_domains(domains)
         resolver_timestamp = resolver.get_timestamp()
-        
+
         total_ips = sum(len(ips) for ips in resolved_domains.values())
         logger.info(f"[BOOT] Loaded {len(resolved_domains)} domain(s) with {total_ips} total IP(s)")
-        
+
     except Exception as e:
         logger.error(f"Failed to load blocked domains: {e}")
+
 
 # ── Comandos ───────────────────────────────────────────────────────────────────
 CMD_START = "START_MONITORING"
@@ -69,12 +73,9 @@ CMD_STOP  = "STOP_MONITORING"
 
 class ConnectionManager:
     def __init__(self):
-        # agent_id → { "ws", "status", "session_id" }
         self.agents: dict[str, dict] = {}
         self.dashboards: list[WebSocket] = []
         self.event_log: list[dict] = []
-
-    # ── Agentes ────────────────────────────────────────────────────────────────
 
     async def connect_agent(self, ws: WebSocket, agent_id: str):
         session_id = open_session(agent_id)
@@ -102,7 +103,6 @@ class ConnectionManager:
         entry = self.agents.get(agent_id, {})
         session_id = entry.get("session_id")
 
-        # ACK de estado
         if "ack" in payload:
             new_status = "monitoring" if payload["ack"] == CMD_START else "waiting"
             if agent_id in self.agents:
@@ -116,15 +116,12 @@ class ConnectionManager:
             await self._broadcast_dashboard(ev)
             return
 
-        # Evento de monitorización
         ts = _now()
         record = {"type": "event", "agent_id": agent_id, "timestamp": ts, "data": payload}
         self._append_log(record)
         if session_id:
             save_event(session_id, agent_id, "event", ts, payload)
         await self._broadcast_dashboard(record)
-
-    # ── Comandos hacia agentes ─────────────────────────────────────────────────
 
     async def send_command(self, agent_id: str, command: str) -> bool:
         entry = self.agents.get(agent_id)
@@ -144,8 +141,6 @@ class ConnectionManager:
         for aid in dead:
             self.disconnect_agent(aid)
         return reached
-
-    # ── Dashboard ──────────────────────────────────────────────────────────────
 
     async def connect_dashboard(self, ws: WebSocket):
         self.dashboards.append(ws)
@@ -183,10 +178,10 @@ def _now() -> str:
 
 manager = ConnectionManager()
 
-# Load blocked domains on startup
+# Cargar dominios bloqueados al arrancar
 _load_blocked_domains()
 
-# Load port rules on startup
+# Cargar reglas de puertos al arrancar
 try:
     port_rules_manager = PortRulesManager("server/allowed_ports_config.yaml")
 except Exception as e:
@@ -247,9 +242,56 @@ async def websocket_dashboard(websocket: WebSocket):
         manager.disconnect_dashboard(websocket)
 
 
-# ── API REST: Sesiones ─────────────────────────────────────────────────────────
+# ── API REST: Internet (senia-firefox) ─────────────────────────────────────────
 
-# ── API REST: Block List ──────────────────────────────────────────────────────
+def _get_aula() -> str:
+    """Obtiene el tercer octeto de la IP del servidor (número de aula)."""
+    try:
+        hostname = _socket.gethostname()
+        ip = _socket.gethostbyname(hostname)
+        return ip.split('.')[2]
+    except Exception:
+        return "0"
+
+
+def _run_senia(args: list[str]) -> str:
+    """Ejecuta senia-firefox con los argumentos dados y devuelve stdout."""
+    result = subprocess.run(
+        ["senia-firefox"] + args,
+        capture_output=True, text=True, timeout=10
+    )
+    return result.stdout.strip()
+
+
+@app.get("/api/internet/status")
+async def api_inet_status():
+    """Consulta el estado de internet via: senia-firefox <aula> status"""
+    aula = _get_aula()
+    output = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _run_senia([aula, "status"])
+    )
+    on = "HAY INTERNET" in output.upper()
+    return JSONResponse({"status": "on" if on else "off", "raw": output, "aula": aula})
+
+
+@app.post("/api/internet/{value}")
+async def api_inet_set(value: int):
+    """Activa (1) o corta (0) internet via: senia-firefox <aula> <0|1>"""
+    if value not in (0, 1):
+        raise HTTPException(status_code=400, detail="Valor debe ser 0 o 1")
+    aula = _get_aula()
+    await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _run_senia([aula, str(value)])
+    )
+    # Verificar estado real tras el cambio
+    status_out = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _run_senia([aula, "status"])
+    )
+    on = "HAY INTERNET" in status_out.upper()
+    return JSONResponse({"status": "on" if on else "off", "raw": status_out, "aula": aula})
+
+
+# ── API REST: Block List ───────────────────────────────────────────────────────
 
 @app.get("/api/block-list")
 async def api_block_list():
@@ -273,7 +315,6 @@ async def api_port_rules():
             "total_rules": 0,
             "rules": []
         })
-    
     return JSONResponse({
         "timestamp": _now(),
         "total_rules": len(port_rules_manager.rules),
@@ -286,11 +327,9 @@ async def api_port_rule(port: int):
     """Get rule for specific port."""
     if not port_rules_manager:
         raise HTTPException(status_code=404, detail="Port rules not loaded")
-    
     rule = port_rules_manager.get_port_rule(port)
     if not rule:
         raise HTTPException(status_code=404, detail=f"No rule found for port {port}")
-    
     return JSONResponse({
         "port": rule.port,
         "protocol": rule.protocol,
@@ -298,6 +337,8 @@ async def api_port_rule(port: int):
         "allowed_sources": [source.to_dict() for source in rule.allowed_sources]
     })
 
+
+# ── API REST: Sesiones ─────────────────────────────────────────────────────────
 
 @app.get("/api/sessions")
 async def api_list_sessions():
