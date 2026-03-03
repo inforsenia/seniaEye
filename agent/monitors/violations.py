@@ -27,8 +27,15 @@ class ViolationChecker:
         logger.info(f"Policy updated: domains={len(policy.blocked_domains)}, ips={len(policy.blocked_ips)}, ports={len(policy.allowed_ports)}")
     
     def check_dns(self, domain: str) -> dict | None:
-        if not domain or domain.lower() not in {d.lower() for d in self.policy.blocked_domains}:
-            print(f"Domain {domain} not in blocked domains: {self.policy.blocked_domains}")
+        if not domain:
+            return None
+        
+        # Check against block list monitor first
+        if self.block_list_monitor and self.block_list_monitor.is_domain_blocked(domain):
+            return {"event_type": "dns_violation", "description": f"Blocked DNS: {domain}"}
+        
+        # Fall back to policy blocked domains
+        if domain.lower() not in {d.lower() for d in self.policy.blocked_domains}:
             return None
         return {"event_type": "dns_violation", "description": f"Blocked DNS: {domain}"}
     
