@@ -1,8 +1,10 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+.from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import json
 import asyncio
+import subprocess
+import socket as _socket
 import subprocess
 import socket as _socket
 from datetime import datetime
@@ -18,8 +20,8 @@ from server.database import (
 from server.domain_resolver import DomainResolver
 from server.port_rules_manager import PortRulesManager
 
-app = FastAPI() 
- 
+app = FastAPI()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,42 +66,6 @@ def _load_blocked_domains():
     except Exception as e:
         logger.error(f"Failed to load blocked domains: {e}")
 
-
-# ── Domain Resolution ──────────────────────────────────────────────────────────
-resolved_domains: dict = {}
-resolver_timestamp: str = ""
-
-# ── Port Rules ─────────────────────────────────────────────────────────────────
-port_rules_manager: PortRulesManager = None
-
-def _load_blocked_domains():
-    """Load and resolve blocked domains at server boot."""
-    global resolved_domains, resolver_timestamp
-    
-    blocked_domains_file = Path(os.path.dirname(os.path.abspath(__file__))) / "blocked_domains.txt"
-    
-    if not blocked_domains_file.exists():
-        logger.warning(f"blocked_domains.txt not found at {blocked_domains_file}")
-        return
-    
-    try:
-        with open(blocked_domains_file, 'r') as f:
-            domains = [line.strip() for line in f if line.strip()]
-        
-        if not domains:
-            logger.warning("blocked_domains.txt is empty")
-            return
-        
-        logger.info(f"[BOOT] Loading {len(domains)} domain(s)")
-        resolver = DomainResolver()
-        resolved_domains = resolver.resolve_domains(domains)
-        resolver_timestamp = resolver.get_timestamp()
-        
-        total_ips = sum(len(ips) for ips in resolved_domains.values())
-        logger.info(f"[BOOT] Loaded {len(resolved_domains)} domain(s) with {total_ips} total IP(s)")
-        
-    except Exception as e:
-        logger.error(f"Failed to load blocked domains: {e}")
 
 # ── Comandos ───────────────────────────────────────────────────────────────────
 CMD_START = "START_MONITORING"
@@ -214,10 +180,10 @@ def _now() -> str:
 
 manager = ConnectionManager()
 
-# Load blocked domains on startup
+# Cargar dominios bloqueados al arrancar
 _load_blocked_domains()
 
-# Load port rules on startup
+# Cargar reglas de puertos al arrancar
 try:
     port_rules_manager = PortRulesManager("server/allowed_ports_config.yaml")
 except Exception as e:
@@ -279,8 +245,9 @@ async def websocket_dashboard(websocket: WebSocket):
 
 
 # ── API REST: Internet (senia-firefox) ─────────────────────────────────────────
-"""
+
 def _get_aula() -> str:
+    """Obtiene el tercer octeto de la IP del servidor (número de aula)."""
     try:
         hostname = _socket.gethostname()
         ip = _socket.gethostbyname(hostname)
@@ -290,6 +257,7 @@ def _get_aula() -> str:
 
 
 def _run_senia(args: list[str]) -> str:
+    """Ejecuta senia-firefox con los argumentos dados y devuelve stdout."""
     result = subprocess.run(
         ["senia-firefox"] + args,
         capture_output=True, text=True, timeout=10
@@ -299,6 +267,7 @@ def _run_senia(args: list[str]) -> str:
 
 @app.get("/api/internet/status")
 async def api_inet_status():
+    """Consulta el estado de internet via: senia-firefox <aula> status"""
     aula = _get_aula()
     output = await asyncio.get_event_loop().run_in_executor(
         None, lambda: _run_senia([aula, "status"])
@@ -309,6 +278,7 @@ async def api_inet_status():
 
 @app.post("/api/internet/{value}")
 async def api_inet_set(value: int):
+    """Activa (1) o corta (0) internet via: senia-firefox <aula> <0|1>"""
     if value not in (0, 1):
         raise HTTPException(status_code=400, detail="Valor debe ser 0 o 1")
     aula = _get_aula()
@@ -321,7 +291,7 @@ async def api_inet_set(value: int):
     )
     on = "HAY INTERNET" in status_out.upper()
     return JSONResponse({"status": "on" if on else "off", "raw": status_out, "aula": aula})
-"""
+
 
 # ── API REST: Block List ───────────────────────────────────────────────────────
 
@@ -371,56 +341,6 @@ async def api_port_rule(port: int):
 
 
 # ── API REST: Sesiones ─────────────────────────────────────────────────────────
-
-# ── API REST: Block List ──────────────────────────────────────────────────────
-
-@app.get("/api/block-list")
-async def api_block_list():
-    """Get resolved blocked domains and IPs."""
-    return JSONResponse({
-        "timestamp": resolver_timestamp,
-        "domains": resolved_domains,
-        "total_domains": len(resolved_domains),
-        "total_ips": sum(len(ips) for ips in resolved_domains.values())
-    })
-
-
-# ── API REST: Port Rules ───────────────────────────────────────────────────────
-
-@app.get("/api/port-rules")
-async def api_port_rules():
-    """Get all port rules."""
-    if not port_rules_manager or not port_rules_manager.rules:
-        return JSONResponse({
-            "timestamp": _now(),
-            "total_rules": 0,
-            "rules": []
-        })
-    
-    return JSONResponse({
-        "timestamp": _now(),
-        "total_rules": len(port_rules_manager.rules),
-        "rules": [rule.to_dict() for rule in port_rules_manager.get_all_rules()]
-    })
-
-
-@app.get("/api/port-rules/{port}")
-async def api_port_rule(port: int):
-    """Get rule for specific port."""
-    if not port_rules_manager:
-        raise HTTPException(status_code=404, detail="Port rules not loaded")
-    
-    rule = port_rules_manager.get_port_rule(port)
-    if not rule:
-        raise HTTPException(status_code=404, detail=f"No rule found for port {port}")
-    
-    return JSONResponse({
-        "port": rule.port,
-        "protocol": rule.protocol,
-        "description": rule.description,
-        "allowed_sources": [source.to_dict() for source in rule.allowed_sources]
-    })
-
 
 @app.get("/api/sessions")
 async def api_list_sessions():
