@@ -164,5 +164,9 @@ class BlockListMonitor:
         Returns:
             True if domain is blocked, False otherwise
         """
+        if not domain:
+            return False
         with self._lock:
-            return domain in self.block_list
+            # Case-insensitive comparison for domains
+            domain_lower = domain.lower()
+            return any(d.lower() == domain_lower for d in self.block_list.keys())
