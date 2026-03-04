@@ -148,7 +148,7 @@ class ConnectionManager:
         self.dashboards.append(ws)
         snapshot = {
             "type": "snapshot",
-            "agents": {aid: e["status"] for aid, e in self.agents.items()},
+            "agents": {aid: {"online": True, "status": e["status"]} for aid, e in self.agents.items()},
             "events": self.event_log[-500:]
         }
         await ws.send_text(json.dumps(snapshot))
