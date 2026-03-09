@@ -46,13 +46,13 @@ class MonitorManager:
         
         self.dns_monitor = DNSMonitor(event_callback, self.violation_checker, machine_name)
         self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name, self.block_list_monitor)
+        self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
     #    self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
-    #    self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
         
         #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
-        #                ("Port", self.port_monitor), ("Interface", self.interface_monitor),
+        #                ("Port", self.port_monitor),
         #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
-        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor), ("IP", self.ip_monitor)]
+        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor), ("IP", self.ip_monitor), ("Interface", self.interface_monitor)]
         
         logger.info("MonitorManager initialized")
     
@@ -120,6 +120,12 @@ class MonitorManager:
     
     def start(self):
         """Start all monitors."""
+        # Log interface being used
+        if self.interface:
+            logger.info(f"[MONITORS] Using interface: {self.interface}")
+        else:
+            logger.warning("[MONITORS] No interface specified, scapy will use default")
+        
         # Start IP sync thread
         self._stop_sync.clear()
         self._ip_sync_thread = threading.Thread(target=self._sync_blocked_ips, daemon=True)
@@ -129,7 +135,11 @@ class MonitorManager:
         for name, monitor in self.monitors:
             try:
                 if hasattr(monitor, 'start'):
-                    monitor.start()
+                    # Pass interface to monitors that support it (DNS, IP monitors)
+                    if name in ["DNS", "IP"]:
+                        monitor.start(iface=self.interface)
+                    else:
+                        monitor.start()
                     logger.info(f"{name}Monitor started")
             except Exception as e:
                 logger.error(f"Failed to start {name}Monitor: {e}")

@@ -2,6 +2,7 @@
 
 import asyncio
 import signal
+import socket
 from agent.sender.ws_sender import WSSender
 from agent.monitors.manager import MonitorManager
 from agent.utils.config import load_config
@@ -12,6 +13,44 @@ logger = get_logger(__name__)
 
 _monitor_manager = None
 _sender = None
+
+def get_default_interface():
+    """Detect the default network interface."""
+    try:
+        # Create a socket and connect to a remote address
+        # This doesn't actually send anything, just determines routing
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        interface_ip = s.getsockname()[0]
+        s.close()
+        
+        # Now get the interface name
+        import subprocess
+        result = subprocess.run(
+            ["ip", "addr", "show"],
+            capture_output=True,
+            text=True
+        )
+        
+        for line in result.stdout.split('\n'):
+            if interface_ip in line:
+                # Extract interface name (e.g., "eth0", "en0")
+                parts = line.split()
+                if parts:
+                    return parts[-1] if parts[-1] not in ['brd'] else parts[0]
+        
+        # Fallback: try common interface names
+        for iface in ["eth0", "en0", "wlan0", "docker0", "enp0s3"]:
+            result = subprocess.run(
+                ["ip", "addr", "show", iface],
+                capture_output=True
+            )
+            if result.returncode == 0:
+                return iface
+    except Exception as e:
+        logger.warning(f"Failed to detect interface: {e}")
+    
+    return None
 
 def setup_signal_handlers():
     """Handle graceful shutdown."""
@@ -48,7 +87,7 @@ async def main():
         _monitor_manager = MonitorManager(
             event_callback=_sender.add_event,
             machine_name=machine_name,
-            interface=None,
+            interface=get_default_interface(),
             server_url=server_url
         )
         

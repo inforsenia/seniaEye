@@ -448,9 +448,10 @@ class DomainsManager {
 
     const domainClean = domain.trim().toLowerCase();
 
-    // Validación básica
-    if (!/^[a-z0-9.-]+\.[a-z]{2,}$.+/.test(domainClean)) {
-      this.showToast('Formato de dominio inválido', 'warn');
+    // Validación mejorada: permite subdomains y TLDs multi-parte
+    // Formatos válidos: github.com, www.github.com, co.uk, github.co.uk, etc.
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/.test(domainClean)) {
+      this.showToast('Formato de dominio inválido (ej: github.com, www.github.com)', 'warn');
       return false;
     }
 
