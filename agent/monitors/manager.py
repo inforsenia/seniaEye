@@ -2,6 +2,7 @@
 
 from typing import Callable, Optional
 import datetime
+import threading
 from agent.monitors.dns_monitor import DNSMonitor
 from agent.monitors.ip_monitor import IPMonitor
 from agent.monitors.port_monitor import PortMonitor
@@ -33,6 +34,10 @@ class MonitorManager:
         # Initialize block list monitor first (needed by violation checker)
         self.block_list_monitor = BlockListMonitor(server_url=server_url)
         
+        # Thread for syncing blocked IPs from block list monitor
+        self._ip_sync_thread = None
+        self._stop_sync = threading.Event()
+        
         # Pass block list monitor to violation checker
         self.violation_checker = ViolationChecker(self.policy, self.block_list_monitor)
         
@@ -40,14 +45,14 @@ class MonitorManager:
         self.port_rules_monitor = PortRulesMonitor(server_url=server_url)
         
         self.dns_monitor = DNSMonitor(event_callback, self.violation_checker, machine_name)
-    #    self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name)
+        self.ip_monitor = IPMonitor(event_callback, self.violation_checker, machine_name, self.block_list_monitor)
     #    self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
     #    self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
         
         #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
         #                ("Port", self.port_monitor), ("Interface", self.interface_monitor),
         #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
-        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor)]
+        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor), ("IP", self.ip_monitor)]
         
         logger.info("MonitorManager initialized")
     
@@ -55,6 +60,26 @@ class MonitorManager:
         """Update monitoring policy from server."""
         self.policy = policy
         self.violation_checker.update_policy(policy)
+    
+    def _sync_blocked_ips(self):
+        """Continuously sync blocked IPs from block list monitor."""
+        while not self._stop_sync.is_set():
+            try:
+                # Get all blocked IPs from block list monitor
+                blocked_ips = self.block_list_monitor.get_blocked_ips()
+                
+                if blocked_ips:
+                    # Update policy blocked IPs
+                    self.policy.blocked_ips = blocked_ips
+                    # Also update violation checker's policy
+                    self.violation_checker.policy.blocked_ips = blocked_ips
+                    
+                    logger.info(f"[IP_SYNC] Updated {len(blocked_ips)} blocked IPs from block list")
+            except Exception as e:
+                logger.error(f"[IP_SYNC] Error syncing blocked IPs: {e}")
+            
+            # Check every 10 seconds or when stop is signaled
+            self._stop_sync.wait(timeout=10)
     
     def _handle_port(self, port_data: dict):
         """Handle captured port and check for violation."""
@@ -95,6 +120,12 @@ class MonitorManager:
     
     def start(self):
         """Start all monitors."""
+        # Start IP sync thread
+        self._stop_sync.clear()
+        self._ip_sync_thread = threading.Thread(target=self._sync_blocked_ips, daemon=True)
+        self._ip_sync_thread.start()
+        logger.info("IP Sync thread started")
+        
         for name, monitor in self.monitors:
             try:
                 if hasattr(monitor, 'start'):
@@ -105,6 +136,11 @@ class MonitorManager:
     
     def stop(self):
         """Stop all monitors."""
+        # Stop IP sync thread
+        self._stop_sync.set()
+        if self._ip_sync_thread and self._ip_sync_thread.is_alive():
+            self._ip_sync_thread.join(timeout=2)
+        
         for name, monitor in self.monitors:
             try:
                 if hasattr(monitor, 'stop'):
