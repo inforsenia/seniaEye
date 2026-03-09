@@ -55,8 +55,16 @@ def init_db() -> None:
                     data        TEXT                 -- JSON serializado
                 );
 
+                CREATE TABLE IF NOT EXISTS blocked_domains (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain      TEXT    NOT NULL UNIQUE,
+                    created_at  TEXT    NOT NULL,
+                    updated_at  TEXT    NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id);
+                CREATE INDEX IF NOT EXISTS idx_blocked_domains_domain ON blocked_domains(domain);
             """)
             conn.commit()
         finally:
@@ -199,6 +207,93 @@ def delete_all_sessions() -> int:
         conn = _connect()
         try:
             cur = conn.execute("DELETE FROM sessions")
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()
+
+
+# ── Dominios Bloqueados ────────────────────────────────────────────────────────
+
+def add_blocked_domain(domain: str) -> bool:
+    """Agrega un dominio bloqueado. Devuelve True si se agregó, False si ya existe."""
+    with _lock:
+        conn = _connect()
+        try:
+            now = _now()
+            conn.execute(
+                "INSERT INTO blocked_domains (domain, created_at, updated_at) VALUES (?, ?, ?)",
+                (domain.strip(), now, now)
+            )
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+
+
+def remove_blocked_domain(domain: str) -> bool:
+    """Elimina un dominio bloqueado. Devuelve True si se eliminó."""
+    with _lock:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "DELETE FROM blocked_domains WHERE domain = ?",
+                (domain.strip(),)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def list_blocked_domains() -> list[dict]:
+    """Devuelve todos los dominios bloqueados ordenados por fecha de creación descendente."""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT id, domain, created_at, updated_at FROM blocked_domains ORDER BY created_at DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+def get_blocked_domain_list() -> list[str]:
+    """Devuelve solo la lista de dominios (strings)."""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT domain FROM blocked_domains ORDER BY domain"
+            ).fetchall()
+            return [r[0] for r in rows]
+        finally:
+            conn.close()
+
+
+def domain_exists(domain: str) -> bool:
+    """Verifica si un dominio existe en la base de datos."""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT id FROM blocked_domains WHERE domain = ?",
+                (domain.strip(),)
+            ).fetchone()
+            return row is not None
+        finally:
+            conn.close()
+
+
+def clear_all_blocked_domains() -> int:
+    """Elimina todos los dominios bloqueados. Devuelve el número eliminado."""
+    with _lock:
+        conn = _connect()
+        try:
+            cur = conn.execute("DELETE FROM blocked_domains")
             conn.commit()
             return cur.rowcount
         finally:

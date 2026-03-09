@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SèniaEye — Dominios Bloqueados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── RESET Y BASE ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0b0e13;
+  --surface:  #111620;
+  --surface2: #161d2a;
+  --border:   #1e2a3a;
+  --accent:   #00d4ff;
+  --green:    #00ff88;
+  --red:      #ff3e5e;
+  --yellow:   #ffd166;
+  --text:     #c8d8e8;
+  --muted:    #4a6070;
+  --crimson:  #8b1a1a;
+  --crimson2: #b52020;
+  --mono:     'Share Tech Mono', monospace;
+  --sans:     'Barlow', sans-serif;
+  --header-h: 56px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+  );
+}
+
+/* ── LAYOUT PRINCIPAL ────────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────────────────── */
+header {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, transparent, var(--crimson2), var(--accent), var(--crimson2), transparent) 1;
+  z-index: 100;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.brand img {
+  height: 36px;
+  filter: brightness(0) invert(1) sepia(1) saturate(2) hue-rotate(320deg) brightness(0.85);
+  opacity: 0.9;
+}
+.brand-sep { width: 1px; height: 30px; background: var(--border); }
+
+.eye-wrap { display: flex; align-items: center; gap: 10px; }
+.eye-svg-sm { width: 36px; height: 36px; flex-shrink: 0; }
+.eye-outer { fill:none; stroke:var(--crimson2); stroke-width:1.5; opacity:0.8; }
+.eye-iris  { fill:none; stroke:var(--accent); stroke-width:1.5; animation: iG 3s ease-in-out infinite; }
+.eye-pupil { fill:var(--accent); animation: pP 3s ease-in-out infinite; }
+@keyframes iG { 0%,100%{opacity:1} 50%{opacity:0.5} }
+@keyframes pP { 0%,100%{r:2.5} 50%{r:1.5} }
+
+.app-title { font-family: var(--mono); font-size: 18px; letter-spacing: 3px; line-height:1; }
+.app-title .s { color: var(--crimson2); }
+.app-title .e { color: var(--accent); text-shadow: 0 0 16px rgba(0,212,255,0.5); }
+.app-sub { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-top: 2px; }
+
+header .flex { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.nav-btn { color: var(--muted); text-decoration: none; font-family: var(--mono); font-size: 11px;
+           letter-spacing: 1px; padding: 5px 12px; border: 1px solid var(--border);
+           border-radius: 2px; transition: all 0.15s; cursor: pointer; }
+.nav-btn:hover { color: var(--accent); border-color: var(--accent); }
+.ws-pill { padding: 4px 10px; border-radius: 12px; font-family: var(--mono);
+           font-size: 9px; letter-spacing: 1px; }
+.ws-pill.wait { background: rgba(181,32,32,0.15); color: var(--crimson2); }
+.ws-pill.ok { background: rgba(0,255,136,0.15); color: var(--green); }
+
+/* ── CONTENEDOR PRINCIPAL ────────────────────────────────────────────────────── */
+.container {
+  grid-row: 2;
+  overflow-y: auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.input-group input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-group input::placeholder {
+  color: var(--muted);
+}
+
+.input-group input:focus {
+  border-color: var(--accent);
+}
+
+.btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn.primary {
+  background: rgba(0,212,255,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btn.danger:hover {
+  background: rgba(255,62,94,0.1);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── LISTA DE DOMINIOS ────────────────────────────────────────────────────────── */
+.domains-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.domain-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: all 0.15s;
+}
+
+.domain-item:hover {
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.05);
+}
+
+.domain-item-text {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.domain-item-delete {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid rgba(255,62,94,0.3);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 9px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+}
+
+.domain-item-delete:hover {
+  border-color: var(--red);
+  background: rgba(255,62,94,0.1);
+}
+
+.empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty-message p {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin: 10px 0;
+}
+
+/* ── ESTADÍSTICAS ────────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--accent);
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── TOASTS ────────────────────────────────────────────────────────────────────── */
+.toasts {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 9998;
+}
+
+.toast {
+  padding: 9px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  border-radius: 2px;
+  max-width: 320px;
+  animation: tIn 0.2s ease, tOut 0.3s ease 2.7s both;
+}
+
+.toast.err { border-left-color: var(--red); }
+.toast.ok { border-left-color: var(--green); }
+.toast.warn { border-left-color: var(--yellow); }
+
+@keyframes tIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+@keyframes tOut { to{opacity:0;transform:translateY(8px)} }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="brand">
+    <img src="/static/logo.png" alt="IES La Sénia">
+    <div class="brand-sep"></div>
+  </div>
+  <div class="eye-wrap">
+    <svg class="eye-svg-sm" viewBox="0 0 44 44">
+      <path class="eye-outer" d="M4,22 Q22,4 40,22 Q22,40 4,22 Z"/>
+      <circle class="eye-iris" cx="22" cy="22" r="9"/>
+      <circle class="eye-pupil" cx="22" cy="22" r="2.5"/>
+      <circle fill="none" stroke="rgba(139,26,26,0.25)" stroke-width="0.8" cx="22" cy="22" r="20"/>
+    </svg>
+    <div>
+      <div class="app-title"><span class="s">Sènia</span><span class="e">Eye</span></div>
+      <div class="app-sub">Gestión de Dominios Bloqueados · IES La Sénia · Paiporta</div>
+    </div>
+  </div>
+
+  <div class="flex">
+    <a href="/" class="nav-btn">◫ DASHBOARD</a>
+    <span class="ws-pill wait" id="ws-status">CONECTANDO</span>
+  </div>
+</header>
+
+<!-- ── CONTENEDOR PRINCIPAL ────────────────────────────────────────────────────– -->
+<div class="container">
+
+  <!-- ── PANEL AGREGAR DOMINIO ──────────────────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-title">➕ AGREGAR DOMINIO</div>
+    <div class="input-group">
+      <input
+        type="text"
+        id="domain-input"
+        placeholder="ejemplo.com"
+        autocomplete="off"
+      />
+      <button class="btn primary" id="add-btn" onclick="addDomain()">AGREGAR</button>
+    </div>
+    
+    <div class="panel-title" style="margin-top: 20px;">📊 ESTADÍSTICAS</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">DOMINIOS TOTAL</div>
+        <div class="stat-value" id="stat-domains">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">IPS RESUELTAS</div>
+        <div class="stat-value" id="stat-ips">0</div>
+      </div>
+    </div>
+
+    <button class="btn" id="reload-btn" onclick="reloadDomains()" style="margin-top: 16px;">⟲ RECARGAR</button>
+  </div>
+
+  <!-- ── PANEL LISTA DE DOMINIOS ────────────────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-title">🔒 DOMINIOS BLOQUEADOS</div>
+    <div class="domains-list" id="domains-list">
+      <div class="empty-message">
+        <p>SIN DOMINIOS</p>
+        <p style="font-size: 10px; color: var(--muted);">Cargando...</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .app -->
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/**
+ * Gestor CRUD de dominios bloqueados
+ */
+
+class DomainsManager {
+  constructor() {
+    this.domains = [];
+    this.stats = { total: 0, ips: 0 };
+  }
+
+  async init() {
+    console.log('Initializing Domains Manager...');
+    try {
+      await this.loadDomains();
+      document.getElementById('domain-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addDomain();
+      });
+    } catch (error) {
+      console.error('Failed to initialize:', error);
+      this.showToast('Error al inicializar', 'err');
+    }
+  }
+
+  async loadDomains() {
+    try {
+      const response = await fetch('/api/blocked-domains');
+      if (!response.ok) throw new Error('Failed to fetch domains');
+      
+      const data = await response.json();
+      this.domains = data.domains || [];
+      this.renderDomains();
+      this.updateStats();
+    } catch (error) {
+      console.error('Error loading domains:', error);
+      this.showToast('Error al cargar dominios', 'err');
+    }
+  }
+
+  async addDomain(domain) {
+    if (!domain || !domain.trim()) {
+      this.showToast('Dominio vacío', 'warn');
+      return false;
+    }
+
+    const domainClean = domain.trim().toLowerCase();
+
+    // Validación básica
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$.+/.test(domainClean)) {
+      this.showToast('Formato de dominio inválido', 'warn');
+      return false;
+    }
+
+    try {
+      const response = await fetch(`/api/blocked-domains?domain=${encodeURIComponent(domainClean)}`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        this.showToast(error.detail || 'Error al agregar', 'err');
+        return false;
+      }
+
+      await this.loadDomains();
+      document.getElementById('domain-input').value = '';
+      this.showToast(`Dominio agregado: ${domainClean}`, 'ok');
+      return true;
+    } catch (error) {
+      console.error('Error adding domain:', error);
+      this.showToast('Error al agregar dominio', 'err');
+      return false;
+    }
+  }
+
+  async removeDomain(domain) {
+    if (!confirm(`¿Eliminar ${domain}?`)) return false;
+
+    try {
+      const response = await fetch(`/api/blocked-domains/${encodeURIComponent(domain)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        this.showToast(error.detail || 'Error al eliminar', 'err');
+        return false;
+      }
+
+      await this.loadDomains();
+      this.showToast(`Dominio eliminado: ${domain}`, 'ok');
+      return true;
+    } catch (error) {
+      console.error('Error removing domain:', error);
+      this.showToast('Error al eliminar dominio', 'err');
+      return false;
+    }
+  }
+
+  async reloadDomains() {
+    try {
+      document.getElementById('reload-btn').disabled = true;
+      const response = await fetch('/api/blocked-domains/reload', { method: 'POST' });
+      
+      if (!response.ok) throw new Error('Failed to reload');
+      
+      const data = await response.json();
+      this.stats.total = data.total_domains;
+      this.stats.ips = data.total_ips;
+      this.updateStats();
+      this.showToast('Dominios recargados y resueltos', 'ok');
+    } catch (error) {
+      console.error('Error reloading:', error);
+      this.showToast('Error al recargar dominios', 'err');
+    } finally {
+      document.getElementById('reload-btn').disabled = false;
+    }
+  }
+
+  renderDomains() {
+    const listEl = document.getElementById('domains-list');
+    
+    if (!this.domains || this.domains.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-message">
+          <p>SIN DOMINIOS</p>
+          <p style="font-size: 10px; color: var(--muted);">Agrega dominios para bloquear</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = this.domains.map(item => `
+      <div class="domain-item">
+        <div class="domain-item-text">${item.domain}</div>
+        <div style="font-size: 9px; color: var(--muted);">${new Date(item.created_at).toLocaleDateString()}</div>
+        <button class="domain-item-delete" onclick="manager.removeDomain('${item.domain}')">ELIMINAR</button>
+      </div>
+    `).join('');
+  }
+
+  updateStats() {
+    document.getElementById('stat-domains').textContent = this.domains.length;
+    document.getElementById('stat-ips').textContent = this.stats.ips || '0';
+  }
+
+  showToast(message, type = 'info') {
+    const container = document.getElementById('toasts');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 3000);
+  }
+}
+
+// Instancia global
+const manager = new DomainsManager();
+
+// Funciones globales para los botones
+async function addDomain() {
+  const input = document.getElementById('domain-input');
+  await manager.addDomain(input.value);
+}
+
+async function reloadDomains() {
+  await manager.reloadDomains();
+}
+
+// Inicializar cuando se carga el DOM
+document.addEventListener('DOMContentLoaded', () => manager.init());
+</script>
+</body>
+</html>

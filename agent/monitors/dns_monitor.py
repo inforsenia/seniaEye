@@ -1,6 +1,6 @@
 import datetime
 import threading
-from scapy.all import sniff, DNSQR
+from scapy.all import sniff, DNSQR, DNSRR, DNS
 from agent.events.models import Event
 from agent.monitors.violations import ViolationChecker
 from agent.utils.logger import get_logger
@@ -22,17 +22,32 @@ class DNSMonitor:
             qname = packet[DNSQR].qname.decode(errors="ignore")
             violation = self.violation_checker.check_dns(qname)
             if violation:
-                logger.info(f"DNS violation detected: {qname} - {violation['description']}")
-                evt = Event(
-                    machine_name=self.machine_name,
-                    event_type=violation["event_type"],
-                    description=violation["description"],
-                    timestamp=datetime.datetime.now().isoformat(),
-                )
-                try:
-                    self.callback(evt)
-                except Exception as e:
-                    logger.error(f"DNS callback error: {e}")
+                # Extraer la IP resuelta de la respuesta DNS
+                resolved_ips = []
+                if packet.haslayer(DNS) and packet[DNS].an:
+                    dns_layer = packet[DNS]
+                    # Recorrer los registros de respuesta (answer section)
+                    answer = dns_layer.an
+                    while answer:
+                        if hasattr(answer, 'rdata'):
+                            # Registros A (IPv4) y AAAA (IPv6)
+                            resolved_ips.append(str(answer.rdata))
+                        answer = answer.payload if hasattr(answer, 'payload') else None
+                
+                # Only report violations if we got resolved IPs
+                if resolved_ips:
+                    ip_info = f" -> Resolved IPs: {', '.join(resolved_ips)}"
+                    logger.info(f"DNS violation detected: {qname} - {violation['description']}{ip_info}")
+                    evt = Event(
+                        machine_name=self.machine_name,
+                        event_type=violation["event_type"],
+                        description=f"{violation['description']} (Resolved to: {', '.join(resolved_ips)})",
+                        timestamp=datetime.datetime.now().isoformat(),
+                    )
+                    try:
+                        self.callback(evt)
+                    except Exception as e:
+                        logger.error(f"DNS callback error: {e}")
 
     def start(self, iface: str | None = None):
         if self._thread and self._thread.is_alive():

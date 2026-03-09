@@ -139,6 +139,16 @@ export class SessionStore {
       filtered = filtered.filter(ev => ev.event_type === type);
     }
     
+    // Filter out DNS events without resolved IPs (exclude "unknown" resolutions)
+    filtered = filtered.filter(ev => {
+      if (ev.event_type === 'dns_violation' && ev.data) {
+        const desc = typeof ev.data === 'string' ? ev.data : (ev.data.description || '');
+        // Only show if it has a resolved IP (not "unknown")
+        return desc && desc.includes('Resolved to:') && !desc.includes('Resolved to: unknown');
+      }
+      return true; // Show non-DNS events
+    });
+    
     if (query) {
       const q = query.toLowerCase();
       filtered = filtered.filter(ev =>

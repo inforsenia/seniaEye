@@ -466,14 +466,25 @@ class Dashboard {
   }
 
   /**
-   * Filter events by selected agent (if active)
+   * Filter by selected agent and DNS quality
    * @private
    */
   filterBySelectedAgent() {
-    if (!this.filterActive || !this.selectedAgent) {
-      return this.eventStore.getAll();
-    }
-    return this.eventStore.getByAgent(this.selectedAgent);
+    let events = this.filterActive && this.selectedAgent
+      ? this.eventStore.getByAgent(this.selectedAgent)
+      : this.eventStore.getAll();
+    
+    // Filter out DNS violations without resolved IPs
+    events = events.filter(event => {
+      if (event.type === 'dns_violation' && event.data) {
+        const desc = typeof event.data === 'string' ? event.data : (event.data.description || '');
+        // Only show if it has a resolved IP (not "unknown")
+        return desc && desc.includes('Resolved to:') && !desc.includes('Resolved to: unknown');
+      }
+      return true; // Show non-DNS events
+    });
+    
+    return events;
   }
 
   /**

@@ -15,7 +15,9 @@ import logging
 from server.database import (
     init_db, open_session, close_session, save_event,
     list_sessions, get_session, get_session_events,
-    delete_session, delete_all_sessions
+    delete_session, delete_all_sessions,
+    add_blocked_domain, remove_blocked_domain, list_blocked_domains,
+    get_blocked_domain_list, domain_exists, clear_all_blocked_domains
 )
 from server.domain_resolver import DomainResolver
 from server.port_rules_manager import PortRulesManager
@@ -37,25 +39,18 @@ resolver_timestamp: str = ""
 port_rules_manager: PortRulesManager = None
 
 
-def _load_blocked_domains():
-    """Load and resolve blocked domains at server boot."""
+def _load_blocked_domains_from_db():
+    """Load and resolve blocked domains from database at server boot."""
     global resolved_domains, resolver_timestamp
 
-    blocked_domains_file = Path(os.path.dirname(os.path.abspath(__file__))) / "blocked_domains.txt"
-
-    if not blocked_domains_file.exists():
-        logger.warning(f"blocked_domains.txt not found at {blocked_domains_file}")
-        return
-
     try:
-        with open(blocked_domains_file, 'r') as f:
-            domains = [line.strip() for line in f if line.strip()]
+        domains = get_blocked_domain_list()
 
         if not domains:
-            logger.warning("blocked_domains.txt is empty")
+            logger.warning("No blocked domains found in database")
             return
 
-        logger.info(f"[BOOT] Loading {len(domains)} domain(s)")
+        logger.info(f"[BOOT] Loading {len(domains)} domain(s) from database")
         resolver = DomainResolver()
         resolved_domains = resolver.resolve_domains(domains)
         resolver_timestamp = resolver.get_timestamp()
@@ -64,7 +59,17 @@ def _load_blocked_domains():
         logger.info(f"[BOOT] Loaded {len(resolved_domains)} domain(s) with {total_ips} total IP(s)")
 
     except Exception as e:
-        logger.error(f"Failed to load blocked domains: {e}")
+        logger.error(f"Failed to load blocked domains from database: {e}")
+
+
+def _resolve_domains(domain_list: list[str]) -> dict:
+    """Resolve a list of domains to IPs."""
+    try:
+        resolver = DomainResolver()
+        return resolver.resolve_domains(domain_list)
+    except Exception as e:
+        logger.error(f"Failed to resolve domains: {e}")
+        return {}
 
 
 # ── Comandos ───────────────────────────────────────────────────────────────────
@@ -180,8 +185,8 @@ def _now() -> str:
 
 manager = ConnectionManager()
 
-# Cargar dominios bloqueados al arrancar
-_load_blocked_domains()
+# Cargar dominios bloqueados al arrancar desde BD
+_load_blocked_domains_from_db()
 
 # Cargar reglas de puertos al arrancar
 try:
@@ -302,6 +307,99 @@ async def api_block_list():
     })
 
 
+# ── API REST: Blocked Domains Management ───────────────────────────────────────
+
+@app.get("/api/blocked-domains")
+async def api_list_blocked_domains():
+    """Get all blocked domains from database."""
+    domains = list_blocked_domains()
+    return JSONResponse({
+        "timestamp": _now(),
+        "domains": domains,
+        "total": len(domains)
+    })
+
+
+@app.post("/api/blocked-domains")
+async def api_add_blocked_domain(domain: str):
+    """Add a new blocked domain and resolve it."""
+    global resolved_domains, resolver_timestamp
+    
+    if not domain or not domain.strip():
+        raise HTTPException(status_code=400, detail="Domain cannot be empty")
+    
+    domain = domain.strip()
+    
+    if domain_exists(domain):
+        raise HTTPException(status_code=409, detail=f"Domain {domain} already exists")
+    
+    # Add to database
+    success = add_blocked_domain(domain)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to add domain to database")
+    
+    # Resolve the domain
+    ips = _resolve_domains([domain])
+    if domain in ips:
+        resolved_domains[domain] = ips[domain]
+        resolver_timestamp = _now()
+    
+    logger.info(f"Added blocked domain: {domain}")
+    
+    return JSONResponse({
+        "success": True,
+        "domain": domain,
+        "ips": ips.get(domain, []),
+        "timestamp": _now()
+    })
+
+
+@app.delete("/api/blocked-domains/{domain}")
+async def api_remove_blocked_domain(domain: str):
+    """Remove a blocked domain."""
+    global resolved_domains, resolver_timestamp
+    
+    if not domain or not domain.strip():
+        raise HTTPException(status_code=400, detail="Domain cannot be empty")
+    
+    domain = domain.strip()
+    
+    success = remove_blocked_domain(domain)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Domain {domain} not found")
+    
+    # Remove from resolved cache
+    if domain in resolved_domains:
+        del resolved_domains[domain]
+        resolver_timestamp = _now()
+    
+    logger.info(f"Removed blocked domain: {domain}")
+    
+    return JSONResponse({
+        "success": True,
+        "deleted_domain": domain,
+        "timestamp": _now()
+    })
+
+
+@app.post("/api/blocked-domains/reload")
+async def api_reload_blocked_domains():
+    """Reload and resolve all blocked domains from database."""
+    global resolved_domains, resolver_timestamp
+    
+    try:
+        _load_blocked_domains_from_db()
+        return JSONResponse({
+            "success": True,
+            "total_domains": len(resolved_domains),
+            "total_ips": sum(len(ips) for ips in resolved_domains.values()),
+            "timestamp": resolver_timestamp
+        })
+    except Exception as e:
+        logger.error(f"Error reloading domains: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reload domains: {str(e)}")
+
+
 # ── API REST: Port Rules ───────────────────────────────────────────────────────
 
 @app.get("/api/port-rules")
@@ -375,3 +473,7 @@ async def serve_dashboard():
 @app.get("/sessions")
 async def serve_sessions():
     return FileResponse(BASE_DIR / "static" / "sessions.html")
+
+@app.get("/domains")
+async def serve_domains():
+    return FileResponse(BASE_DIR / "static" / "domains.html")

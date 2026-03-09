@@ -4,6 +4,46 @@
  */
 
 /**
+ * Extract only values from event data, removing keys
+ * Useful for displaying event data without field names
+ * @param {*} data - Data to extract values from
+ * @returns {string} Formatted values only
+ */
+export function extractValuesOnly(data) {
+  if (!data) return '—';
+  
+  if (typeof data === 'string') return data;
+  if (typeof data === 'number') return String(data);
+  if (typeof data === 'boolean') return data ? 'true' : 'false';
+  if (data instanceof Date) return data.toISOString();
+  
+  // If it's an object or array, extract only the values
+  if (typeof data === 'object') {
+    try {
+      if (Array.isArray(data)) {
+        // For arrays, join the values with commas
+        return data.map(v => extractValuesOnly(v)).join(', ');
+      } else {
+        // For objects, extract values and join them
+        const values = Object.values(data)
+          .filter(v => v !== null && v !== undefined && v !== '')
+          .map(v => {
+            if (typeof v === 'object') {
+              return extractValuesOnly(v);
+            }
+            return String(v);
+          });
+        return values.join(' · ');
+      }
+    } catch {
+      return String(data);
+    }
+  }
+  
+  return String(data);
+}
+
+/**
  * Format event data for display in log table
  * @param {object} event - Event object from server
  * @returns {string} Formatted display string
@@ -13,23 +53,39 @@ export function formatEventData(event) {
   
   switch (event.type) {
     case 'event':
-      return formatData(event.data);
+      return cleanEventData(event.data);
     
     case 'agent_status':
-      return `estado → ${event.status}`;
+      return `${extractValuesOnly(event.status)}`;
     
     case 'command_ack':
-      return `cmd:${event.command} | ok:${event.success}`;
+      return `${event.command} → ${event.success ? '✓' : '✗'}`;
     
     case 'broadcast_ack':
-      return `cmd:${event.command} | alcanzados:${event.count}`;
+      return `${event.command} · ${event.count} alcanzados`;
     
     case 'dhcp_alert':
       return `⚠ ${event.data?.alert || ''} — ${event.data?.server_ip || ''}`;
     
     default:
-      return formatData(event.data);
+      return cleanEventData(event.data);
   }
+}
+
+/**
+ * Clean event data by removing timestamp field
+ * @param {*} data - Data to clean
+ * @returns {string} Cleaned data string
+ */
+function cleanEventData(data) {
+  if (!data) return '—';
+  if (typeof data === 'string') return data;
+  if (typeof data === 'object') {
+    const cleaned = { ...data };
+    delete cleaned.timestamp;
+    return extractValuesOnly(cleaned);
+  }
+  return extractValuesOnly(data);
 }
 
 /**
@@ -55,19 +111,21 @@ export function formatData(data) {
 /**
  * Format timestamp for display
  * @param {string} isoTimestamp - ISO 8601 timestamp
- * @returns {string} Formatted timestamp
+ * @returns {string} Formatted timestamp (DD/MM/YYYY HH:mm:ss)
  */
 export function formatTimestamp(isoTimestamp) {
   if (!isoTimestamp) return '—';
   
   try {
     const date = new Date(isoTimestamp);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
-    const ms = String(date.getMilliseconds()).padStart(3, '0');
     
-    return `${hours}:${minutes}:${seconds}.${ms}`;
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   } catch {
     return isoTimestamp;
   }

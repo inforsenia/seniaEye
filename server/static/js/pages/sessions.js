@@ -199,7 +199,7 @@ class SessionsPage {
       }
 
       this.setupDetailListeners();
-      this.renderDetailEvents();
+      this.filterDetailEvents();
     } catch (error) {
       console.error('Failed to load session detail:', error);
       if (panel) {
@@ -269,6 +269,46 @@ class SessionsPage {
   }
 
   /**
+   * Format timestamp compactly with date and time
+   * @private
+   */
+  formatTimestampCompact(timestamp) {
+    try {
+      // Parse "YYYY-MM-DD HH:mm:ss" format
+      const [datePart, timePart] = timestamp.split(' ');
+      if (!datePart || !timePart) return timestamp;
+      
+      const [year, month, day] = datePart.split('-');
+      // Format as "DD/MM/YYYY HH:mm:ss"
+      return `${day}/${month}/${year} ${timePart}`;
+    } catch (e) {
+      return timestamp;
+    }
+  }
+
+  /**
+   * Clean event data for display (remove redundant timestamp)
+   * @private
+   */
+  cleanEventData(data) {
+    if (!data) return '—';
+    
+    // If data is a string, return as is
+    if (typeof data === 'string') {
+      return data;
+    }
+    
+    // If data is an object, remove timestamp field if present
+    if (typeof data === 'object') {
+      const cleaned = { ...data };
+      delete cleaned.timestamp;
+      return JSON.stringify(cleaned);
+    }
+    
+    return JSON.stringify(data);
+  }
+
+  /**
    * Render detail events
    * @private
    */
@@ -289,15 +329,15 @@ class SessionsPage {
 
     const sorted = this.store.sortEvents(this.filteredEvents, this.sortOrder);
     tbody.innerHTML = sorted.map(event => {
-      const dataStr = event.data
-        ? (typeof event.data === 'string' ? event.data : JSON.stringify(event.data))
-        : '—';
+      const formattedTs = this.formatTimestampCompact(event.timestamp);
+      const cleanedData = this.cleanEventData(event.data);
+      const dataStr = dom.escape(cleanedData);
 
       return `
         <tr>
-          <td class="col-ts">${event.timestamp}</td>
+          <td class="col-ts">${formattedTs}</td>
           <td class="col-type"><span class="type-badge type-${event.event_type}">${event.event_type}</span></td>
-          <td class="col-data">${dom.escape(dataStr)}</td>
+          <td class="col-data">${dataStr}</td>
         </tr>`;
     }).join('');
   }
