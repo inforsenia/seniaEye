@@ -49,10 +49,15 @@ class MonitorManager:
         self.interface_monitor = InterfaceMonitor(event_callback, machine_name)
         self.port_monitor = PortMonitor(self._handle_port, interface, self.port_rules_monitor)
         
-        #self.monitors = [("DNS", self.dns_monitor), ("IP", self.ip_monitor), 
-        #                ("Port", self.port_monitor),
-        #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
-        self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor), ("IP", self.ip_monitor), ("Port", self.port_monitor), ("Interface", self.interface_monitor)]
+        # List of monitors to manage (order matters)
+        self.monitors = [
+            ("PortRules", self.port_rules_monitor),
+            ("DNS", self.dns_monitor),
+            ("BlockList", self.block_list_monitor),
+            ("IP", self.ip_monitor),
+            ("Port", self.port_monitor),
+            ("Interface", self.interface_monitor)
+        ]
         
         logger.info("MonitorManager initialized")
     
