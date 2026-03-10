@@ -67,15 +67,15 @@ async def main():
     global _monitor_manager, _sender
     
     try:
-        config = load_config("agent/config/default.conf")
+        config = load_config("agent/config/default.yaml")
         machine_name = config.machine_name or get_machine_name()
         logger.info(f"Machine: {machine_name}")
         
         _sender = WSSender()
         asyncio.create_task(_sender.run())
         
-        # Extract server URL from ws_url (e.g., ws://127.0.0.1:8000/ws/events -> http://127.0.0.1:8000)
-        server_url = "http://localhost:8000"
+        # Extract server URL from ws_url (e.g., ws://127.0.0.1:1984/ws/events -> http://127.0.0.1:1984)
+        server_url = "http://127.0.0.1:1984"
         if hasattr(config, 'ws_url') and config.ws_url:
             # Convert ws:// or wss:// to http:// or https://
             ws_url = config.ws_url

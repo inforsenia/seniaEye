@@ -69,8 +69,8 @@ El sistema también monitoriza cambios en las interfaces de red del equipo, con 
 
 ## Envío de datos por parte del agente 
 
-Los equipos disponen de un archivo de configuración llamado `seniaeye.conf` en el que se indica la IP del servidor y cualquier aspecto de configuración oportuno.
-Realizan la conexión mediante websocket con el servidor. En caso de de no poder realizarla lo vuelven a intentar 30 segundos más tarde  
+Los equipos disponen de un archivo de configuración YAML llamado `agent/config/default.yaml` en el que se indica la URL del servidor WebSocket y cualquier aspecto de configuración oportuno.
+Realizan la conexión mediante websocket con el servidor. En caso de no poder realizarla lo vuelven a intentar 30 segundos más tarde.
 ---
 
 ## Recepción y visualización de datos por parte del servidor

@@ -1,0 +1,29 @@
+# ============================================================================
+# SERVIDOR - CONFIGURACIÓN CENTRALIZADA
+# ============================================================================
+# Esta es la configuración centralizada del servidor.
+# Todos los parámetros del servidor se definen aquí.
+# ============================================================================
+
+server:
+  # Dirección de escucha del servidor
+  host: "0.0.0.0"
+  
+  # Puerto del servidor - PARÁMETRO CENTRAL
+  port: 1984
+  
+  # URL base del servidor (usada por el agente para conectarse)
+  # Pueden ser: localhost, 127.0.0.1, o IP específica
+  base_url: "http://127.0.0.1:1984"
+  
+  # Configuración de WebSocket
+  websocket:
+    # Path del endpoint WebSocket
+    path: "/ws/events"
+    # URL completa del WebSocket (para el agente)
+    url: "ws://127.0.0.1:1984/ws/events"
+
+# Configuración de logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

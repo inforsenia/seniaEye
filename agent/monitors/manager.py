@@ -23,7 +23,7 @@ class MonitorManager:
                  event_callback: Callable,
                  machine_name: str,
                  interface: Optional[str] = None,
-                 server_url: str = "http://localhost:8000"):
+                 server_url: str = "http://127.0.0.1:1984"):
         
         self.event_callback = event_callback
         self.machine_name = machine_name

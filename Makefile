@@ -9,7 +9,7 @@ install: venv
 	./venv/bin/python -m pip install -r requirements.txt
 
 server:
-	$(PYTHON) -m uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
+	$(PYTHON) -m uvicorn server.main:app --reload --host 0.0.0.0 --port 1984
 
 agent:
 	sudo ./venv/bin/python -m agent.main

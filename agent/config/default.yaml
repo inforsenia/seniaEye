@@ -1,0 +1,19 @@
+# ============================================================================
+# AGENTE - CONFIGURACIÓN CENTRALIZADA
+# ============================================================================
+# Configuración del agente que se conecta al servidor.
+# ============================================================================
+
+server:
+  # URL del WebSocket del servidor
+  ws_url: "ws://127.0.0.1:1984/ws/events"
+  
+  # Intervalo de reintentos en segundos (cuando se desconecta)
+  retry_delay: 30
+
+agent:
+  # Nombre de la máquina (si está vacío, se detecta automáticamente)
+  machine_name: ""
+  
+  # Nivel de log: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: "INFO"
