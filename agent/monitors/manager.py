@@ -87,16 +87,46 @@ class MonitorManager:
             self._stop_sync.wait(timeout=10)
     
     def _handle_port(self, port_data: dict):
-        """Handle captured port and check for violation."""
+        """Handle captured port events from PortMonitor."""
         try:
-            port = port_data.get("port")
-            destination = port_data.get("destination")
-            is_allowed = port_data.get("allowed", True)
-            reason = port_data.get("reason", "")
+            # New PortMonitor sends structured events
+            event_type = port_data.get("type")
             
-            if port:
-                # If port rules indicate violation, create event
-                if not is_allowed:
+            if event_type == "port_event":
+                # From new PortMonitor with 3 filtering rules
+                port = port_data.get("port")
+                protocol = port_data.get("protocol", "tcp").upper()
+                source = port_data.get("source", "unknown")
+                destination = port_data.get("destination", "unknown")
+                is_external = port_data.get("is_external", False)
+                
+                # Determine event description based on rule that matched
+                if port == 853:
+                    description = f"DNS over TLS/DTLS: {protocol}/{port} from {source} to {destination}"
+                elif port == 443 and is_external:
+                    description = f"HTTPS to DoH server: {protocol}/{port} from {source} to {destination}"
+                else:
+                    # Other external connection
+                    external_label = " (external)" if is_external else " (local)"
+                    description = f"Port connection{external_label}: {protocol}/{port} from {source} to {destination}"
+                
+                evt = Event(
+                    machine_name=self.machine_name,
+                    event_type="port_event",
+                    description=description,
+                    timestamp=datetime.datetime.now().isoformat(),
+                    destination_ip=destination,
+                )
+                self.event_callback(evt)
+            
+            else:
+                # Legacy handling (if needed for backwards compatibility)
+                port = port_data.get("port")
+                destination = port_data.get("destination")
+                is_allowed = port_data.get("allowed", True)
+                reason = port_data.get("reason", "")
+                
+                if port and not is_allowed:
                     source = port_data.get("source", "unknown")
                     protocol = port_data.get("protocol", "tcp")
                     
@@ -108,18 +138,7 @@ class MonitorManager:
                         destination_ip=destination,
                     )
                     self.event_callback(evt)
-                else:
-                    # For allowed ports, still check with violation checker
-                    violation = self.violation_checker.check_port(port, destination)
-                    if violation:
-                        evt = Event(
-                            machine_name=self.machine_name,
-                            event_type=violation["event_type"],
-                            description=violation["description"],
-                            timestamp=datetime.datetime.now().isoformat(),
-                            destination_ip=destination,
-                        )
-                        self.event_callback(evt)
+        
         except Exception as e:
             logger.error(f"Port handler error: {e}")
     
