@@ -17,10 +17,7 @@ from server.database import (
     list_sessions, get_session, get_session_events,
     delete_session, delete_all_sessions,
     add_blocked_domain, remove_blocked_domain, list_blocked_domains,
-    get_blocked_domain_list, domain_exists, clear_all_blocked_domains,
-    add_dns_doh_server, remove_dns_doh_server, list_dns_doh_servers,
-    get_dns_doh_ips, dns_doh_server_exists, update_dns_doh_server,
-    clear_all_dns_doh_servers
+    get_blocked_domain_list, domain_exists, clear_all_blocked_domains
 )
 from server.domain_resolver import DomainResolver
 from server.port_rules_manager import PortRulesManager
@@ -401,105 +398,6 @@ async def api_reload_blocked_domains():
     except Exception as e:
         logger.error(f"Error reloading domains: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to reload domains: {str(e)}")
-
-
-# ── API REST: DNS DoH Servers Management ───────────────────────────────────────
-
-@app.get("/api/dns-doh/list")
-async def api_list_dns_doh():
-    """Get all DNS DoH servers."""
-    servers = list_dns_doh_servers()
-    return JSONResponse({
-        "timestamp": _now(),
-        "servers": servers,
-        "total": len(servers)
-    })
-
-
-@app.post("/api/dns-doh/add")
-async def api_add_dns_doh(ip_address: str, hostname: str = None, description: str = None):
-    """Add a new DNS DoH server."""
-    if not ip_address or not ip_address.strip():
-        raise HTTPException(status_code=400, detail="IP address cannot be empty")
-    
-    ip_address = ip_address.strip()
-    
-    if dns_doh_server_exists(ip_address):
-        raise HTTPException(status_code=409, detail=f"Server {ip_address} already exists")
-    
-    success = add_dns_doh_server(ip_address, hostname, description)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to add DoH server")
-    
-    logger.info(f"Added DNS DoH server: {ip_address}")
-    
-    return JSONResponse({
-        "success": True,
-        "ip_address": ip_address,
-        "hostname": hostname,
-        "description": description,
-        "timestamp": _now()
-    })
-
-
-@app.put("/api/dns-doh/{ip_address}")
-async def api_update_dns_doh(ip_address: str, hostname: str = None, description: str = None):
-    """Update a DNS DoH server."""
-    if not ip_address or not ip_address.strip():
-        raise HTTPException(status_code=400, detail="IP address cannot be empty")
-    
-    ip_address = ip_address.strip()
-    
-    if not dns_doh_server_exists(ip_address):
-        raise HTTPException(status_code=404, detail=f"Server {ip_address} not found")
-    
-    success = update_dns_doh_server(ip_address, hostname, description)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update DoH server")
-    
-    logger.info(f"Updated DNS DoH server: {ip_address}")
-    
-    return JSONResponse({
-        "success": True,
-        "ip_address": ip_address,
-        "hostname": hostname,
-        "description": description,
-        "timestamp": _now()
-    })
-
-
-@app.delete("/api/dns-doh/{ip_address}")
-async def api_remove_dns_doh(ip_address: str):
-    """Remove a DNS DoH server."""
-    if not ip_address or not ip_address.strip():
-        raise HTTPException(status_code=400, detail="IP address cannot be empty")
-    
-    ip_address = ip_address.strip()
-    
-    success = remove_dns_doh_server(ip_address)
-    if not success:
-        raise HTTPException(status_code=404, detail=f"Server {ip_address} not found")
-    
-    logger.info(f"Removed DNS DoH server: {ip_address}")
-    
-    return JSONResponse({
-        "success": True,
-        "deleted_ip": ip_address,
-        "timestamp": _now()
-    })
-
-
-@app.post("/api/dns-doh/clear-all")
-async def api_clear_all_dns_doh():
-    """Clear all DNS DoH servers."""
-    count = clear_all_dns_doh_servers()
-    logger.info(f"Cleared all DNS DoH servers ({count} removed)")
-    
-    return JSONResponse({
-        "success": True,
-        "cleared_count": count,
-        "timestamp": _now()
-    })
 
 
 # ── API REST: Port Rules ───────────────────────────────────────────────────────

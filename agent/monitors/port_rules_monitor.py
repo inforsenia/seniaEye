@@ -1,16 +1,16 @@
-"""Port Rules Monitor - fetches and caches port rules and DoH servers from server."""
+"""Port Rules Monitor - fetches and caches port rules from server."""
 
 import threading
 import json
 import time
-from typing import Dict, Optional, List, Set
+from typing import Dict, Optional, Callable
 from agent.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class PortRulesMonitor:
-    """Monitors and syncs port rules and DoH servers from server."""
+    """Monitors and syncs port rules from server."""
     
     def __init__(self, server_url: str = "http://127.0.0.1:1984", 
                  sync_interval: int = 600):
@@ -24,9 +24,7 @@ class PortRulesMonitor:
         self.server_url = server_url.rstrip('/')
         self.sync_interval = sync_interval
         self.rules: Dict = {}  # port → rule dict
-        self.doh_servers: List[str] = []  # List of DoH server IPs
         self.last_sync: Optional[float] = None
-        self.last_doh_sync: Optional[float] = None
         self.thread: Optional[threading.Thread] = None
         self.running = False
         self.lock = threading.Lock()
@@ -41,9 +39,8 @@ class PortRulesMonitor:
         self.thread.start()
         logger.info("[PORT_RULES] Monitor started")
         
-        # Fetch rules and DoH servers immediately on first start
+        # Fetch rules immediately on first start
         self.sync_rules()
-        self.sync_doh_servers()
     
     def stop(self):
         """Stop the port rules monitor thread."""
@@ -59,7 +56,6 @@ class PortRulesMonitor:
                 time.sleep(self.sync_interval)
                 if self.running:
                     self.sync_rules()
-                    self.sync_doh_servers()
             except Exception as e:
                 logger.error(f"[PORT_RULES] Monitor error: {e}")
     
@@ -92,54 +88,15 @@ class PortRulesMonitor:
             
             return True
         
-        except Exception as e:
-            logger.warning(f"[PORT_RULES] Failed to sync rules: {e}")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"[PORT_RULES] Failed to reach server: {e}")
             return False
-    
-    def sync_doh_servers(self) -> bool:
-        """Fetch DoH servers from server."""
-        try:
-            import requests
-            
-            url = f"{self.server_url}/api/dns-doh/list"
-            response = requests.get(url, timeout=5)
-            
-            if response.status_code != 200:
-                logger.debug(f"[PORT_RULES] Failed to fetch DoH servers: HTTP {response.status_code}")
-                return False
-            
-            data = response.json()
-            
-            with self.lock:
-                # Extract IP addresses from the response
-                # Expected format: [{ip_address, hostname, description, ...}, ...]
-                self.doh_servers = []
-                for server in data.get("servers", []):
-                    ip = server.get("ip_address")
-                    if ip:
-                        self.doh_servers.append(ip)
-                
-                self.last_doh_sync = time.time()
-            
-            total_servers = len(self.doh_servers)
-            logger.info(f"[PORT_RULES] Synced {total_servers} DoH server(s) from server")
-            
-            return True
-        
-        except Exception as e:
-            logger.debug(f"[PORT_RULES] Failed to sync DoH servers: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"[PORT_RULES] Failed to parse response: {e}")
             return False
-    
-    def get_doh_servers(self) -> List[str]:
-        """
-        Get list of DoH server IPs.
-        
-        Returns:
-            List of IP addresses that are DNS DoH servers
-        """
-        with self.lock:
-            return self.doh_servers.copy() if self.doh_servers else []
-
+        except Exception as e:
+            logger.error(f"[PORT_RULES] Sync error: {e}")
+            return False
     
     def get_rule(self, port: int) -> Optional[Dict]:
         """Get rule for a specific port."""

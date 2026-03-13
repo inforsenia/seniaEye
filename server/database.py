@@ -62,19 +62,9 @@ def init_db() -> None:
                     updated_at  TEXT    NOT NULL
                 );
 
-                CREATE TABLE IF NOT EXISTS dns_doh_servers (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ip_address  TEXT    NOT NULL UNIQUE,
-                    hostname    TEXT,
-                    description TEXT,
-                    created_at  TEXT    NOT NULL,
-                    updated_at  TEXT    NOT NULL
-                );
-
                 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
                 CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id);
                 CREATE INDEX IF NOT EXISTS idx_blocked_domains_domain ON blocked_domains(domain);
-                CREATE INDEX IF NOT EXISTS idx_dns_doh_servers_ip ON dns_doh_servers(ip_address);
             """)
             conn.commit()
         finally:
@@ -308,126 +298,6 @@ def clear_all_blocked_domains() -> int:
             return cur.rowcount
         finally:
             conn.close()
-
-
-# ── Servidores DNS DoH ─────────────────────────────────────────────────────────
-
-def add_dns_doh_server(ip_address: str, hostname: str = None, description: str = None) -> bool:
-    """Agrega un servidor DNS DoH. Devuelve True si se agregó, False si ya existe."""
-    with _lock:
-        conn = _connect()
-        try:
-            now = _now()
-            conn.execute(
-                """INSERT INTO dns_doh_servers (ip_address, hostname, description, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (ip_address.strip(), hostname, description, now, now)
-            )
-            conn.commit()
-            return True
-        except sqlite3.IntegrityError:
-            return False
-        finally:
-            conn.close()
-
-
-def remove_dns_doh_server(ip_address: str) -> bool:
-    """Elimina un servidor DNS DoH. Devuelve True si se eliminó."""
-    with _lock:
-        conn = _connect()
-        try:
-            cur = conn.execute(
-                "DELETE FROM dns_doh_servers WHERE ip_address = ?",
-                (ip_address.strip(),)
-            )
-            conn.commit()
-            return cur.rowcount > 0
-        finally:
-            conn.close()
-
-
-def list_dns_doh_servers() -> list[dict]:
-    """Devuelve todos los servidores DNS DoH ordenados por fecha de creación descendente."""
-    with _lock:
-        conn = _connect()
-        try:
-            rows = conn.execute(
-                """SELECT id, ip_address, hostname, description, created_at, updated_at
-                   FROM dns_doh_servers ORDER BY created_at DESC"""
-            ).fetchall()
-            return [dict(r) for r in rows]
-        finally:
-            conn.close()
-
-
-def get_dns_doh_ips() -> list[str]:
-    """Devuelve solo la lista de IPs de servidores DNS DoH."""
-    with _lock:
-        conn = _connect()
-        try:
-            rows = conn.execute(
-                "SELECT ip_address FROM dns_doh_servers ORDER BY ip_address"
-            ).fetchall()
-            return [r[0] for r in rows]
-        finally:
-            conn.close()
-
-
-def dns_doh_server_exists(ip_address: str) -> bool:
-    """Verifica si un servidor DNS DoH existe en la base de datos."""
-    with _lock:
-        conn = _connect()
-        try:
-            row = conn.execute(
-                "SELECT id FROM dns_doh_servers WHERE ip_address = ?",
-                (ip_address.strip(),)
-            ).fetchone()
-            return row is not None
-        finally:
-            conn.close()
-
-
-def update_dns_doh_server(ip_address: str, hostname: str = None, description: str = None) -> bool:
-    """Actualiza un servidor DNS DoH. Devuelve True si se actualizó."""
-    with _lock:
-        conn = _connect()
-        try:
-            updates = []
-            params = []
-            
-            if hostname is not None:
-                updates.append("hostname = ?")
-                params.append(hostname)
-            if description is not None:
-                updates.append("description = ?")
-                params.append(description)
-            
-            if not updates:
-                return False
-            
-            updates.append("updated_at = ?")
-            params.append(_now())
-            params.append(ip_address.strip())
-            
-            query = f"UPDATE dns_doh_servers SET {', '.join(updates)} WHERE ip_address = ?"
-            cur = conn.execute(query, params)
-            conn.commit()
-            return cur.rowcount > 0
-        finally:
-            conn.close()
-
-
-def clear_all_dns_doh_servers() -> int:
-    """Elimina todos los servidores DNS DoH. Devuelve el número eliminado."""
-    with _lock:
-        conn = _connect()
-        try:
-            cur = conn.execute("DELETE FROM dns_doh_servers")
-            conn.commit()
-            return cur.rowcount
-        finally:
-            conn.close()
-
 
 
 # ── Utilidades ─────────────────────────────────────────────────────────────────
