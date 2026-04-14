@@ -14,12 +14,12 @@ logger = get_logger(__name__)
 class BlockListMonitor:
     """Fetches and manages block list from server."""
     
-    def __init__(self, server_url: str = "http://127.0.0.1:1984", fetch_interval: int = 300):
+    def __init__(self, server_url: str, fetch_interval: int = 300):
         """
         Initialize block list monitor.
         
         Args:
-            server_url: Base URL of the server (default: http://127.0.0.1:1984)
+            server_url: Base URL of the server (e.g., http://127.0.0.1:1984)
             fetch_interval: Interval in seconds between fetches (default: 300 = 5 minutes)
         """
         self.server_url = server_url

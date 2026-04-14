@@ -35,7 +35,14 @@ class ConfigLoader:
         
         # Load server settings
         server_config = self.config.get("server", {})
-        self.server_url = server_config.get("ws_url", self.server_url)
+        ws_url = server_config.get("ws_url", "")
+        
+        if ws_url:
+            if ws_url.startswith("wss://"):
+                self.server_url = "https://" + ws_url[6:].split('/')[0]
+            elif ws_url.startswith("ws://"):
+                self.server_url = "http://" + ws_url[5:].split('/')[0]
+        
         self.retry_delay = server_config.get("retry_delay", self.retry_delay)
         
         # Load agent settings

@@ -12,13 +12,13 @@ logger = get_logger(__name__)
 class PortRulesMonitor:
     """Monitors and syncs port rules from server."""
     
-    def __init__(self, server_url: str = "http://127.0.0.1:1984", 
+    def __init__(self, server_url: str, 
                  sync_interval: int = 600):
         """
         Initialize port rules monitor.
         
         Args:
-            server_url: Base URL of the server (e.g., http://127.0.0.1:1984)
+            server_url: Base URL of the server (required)
             sync_interval: Interval in seconds to sync rules from server (default 10 minutes)
         """
         self.server_url = server_url.rstrip('/')
