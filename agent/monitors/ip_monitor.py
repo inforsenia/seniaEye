@@ -23,6 +23,8 @@ class IPMonitor:
         self._thread = None
         self._stop_sniff = threading.Event()
         self._packet_count = 0
+        self._paused = False
+        self._pause_lock = threading.Lock()
         # Track recent violations: {ip: timestamp}
         self._recent_violations = {}
         self._dedup_lock = threading.Lock()
@@ -67,6 +69,11 @@ class IPMonitor:
             return False
 
     def _process_packet(self, packet):
+        # Skip if paused
+        with self._pause_lock:
+            if self._paused:
+                return
+        
         if packet.haslayer(IP):
             dst = packet[IP].dst
             violation = self.violation_checker.check_ip(dst)
@@ -116,3 +123,15 @@ class IPMonitor:
         with self._dedup_lock:
             self._recent_violations.clear()
         logger.info("[IP_MONITOR] Deduplication cache cleared")
+    
+    def pause(self):
+        """Pause packet processing without stopping the monitor."""
+        with self._pause_lock:
+            self._paused = True
+        logger.info("[IP_MONITOR] Paused")
+    
+    def resume(self):
+        """Resume packet processing."""
+        with self._pause_lock:
+            self._paused = False
+        logger.info("[IP_MONITOR] Resumed")

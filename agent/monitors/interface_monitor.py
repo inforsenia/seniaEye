@@ -13,6 +13,8 @@ class InterfaceMonitor:
         self.callback = callback
         self.machine_name = machine_name
         self.observer = None
+        self._paused = False
+        self._pause_lock = threading.Lock()
         try:
             self.context = pyudev.Context()
             self.monitor = pyudev.Monitor.from_netlink(self.context)
@@ -27,6 +29,11 @@ class InterfaceMonitor:
 
     def _udev_event(self, device):
         """Handle udev events for network interfaces."""
+        # Skip if paused
+        with self._pause_lock:
+            if self._paused:
+                return
+        
         try:
             action = device.action
             device_name = device.get('INTERFACE', device.sys_name)
@@ -84,3 +91,15 @@ class InterfaceMonitor:
                 logger.error(f"[INTERFACE_MONITOR] Error stopping observer: {e}")
         else:
             logger.debug("[INTERFACE_MONITOR] Observer already stopped or not initialized")
+    
+    def pause(self):
+        """Pause event processing without stopping the monitor."""
+        with self._pause_lock:
+            self._paused = True
+        logger.info("[INTERFACE_MONITOR] Paused")
+    
+    def resume(self):
+        """Resume event processing."""
+        with self._pause_lock:
+            self._paused = False
+        logger.info("[INTERFACE_MONITOR] Resumed")

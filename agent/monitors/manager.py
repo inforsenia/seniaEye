@@ -11,6 +11,7 @@ from agent.monitors.interface_monitor import InterfaceMonitor
 from agent.monitors.block_list_monitor import BlockListMonitor
 from agent.monitors.violations import ViolationChecker
 from agent.config.models import MonitoringPolicy
+from agent.config.monitoring_state import get_monitoring_state
 from agent.events.models import Event
 from agent.utils.logger import get_logger
 
@@ -54,6 +55,10 @@ class MonitorManager:
         #                ("Port", self.port_monitor),
         #                ("BlockList", self.block_list_monitor), ("PortRules", self.port_rules_monitor)]
         self.monitors = [("DNS", self.dns_monitor), ("BlockList", self.block_list_monitor), ("IP", self.ip_monitor), ("Port", self.port_monitor), ("Interface", self.interface_monitor)]
+        
+        # Subscribe to monitoring state changes
+        self._monitoring_state = get_monitoring_state()
+        self._monitoring_state.register_callback(self._on_monitoring_state_change)
         
         logger.info("MonitorManager initialized")
     
@@ -163,6 +168,11 @@ class MonitorManager:
                     logger.info(f"{name}Monitor started")
             except Exception as e:
                 logger.error(f"Failed to start {name}Monitor: {e}")
+        
+        # Pause monitors by default (wait for explicit START from server)
+        if not self._monitoring_state.is_monitoring():
+            logger.info("[MONITORS] Pausing all monitors until START command is received from server")
+            self._pause_monitors()
     
     def stop(self):
         """Stop all monitors."""
@@ -178,4 +188,33 @@ class MonitorManager:
                     logger.info(f"{name}Monitor stopped")
             except Exception as e:
                 logger.error(f"Failed to stop {name}Monitor: {e}")
+    
+    def _on_monitoring_state_change(self, is_monitoring: bool):
+        """Callback when monitoring state changes."""
+        if is_monitoring:
+            logger.info("Resuming monitors...")
+            self._resume_monitors()
+        else:
+            logger.info("Pausing monitors due to monitoring disabled...")
+            self._pause_monitors()
+    
+    def _pause_monitors(self):
+        """Pause all active monitors."""
+        for name, monitor in self.monitors:
+            try:
+                if hasattr(monitor, 'pause'):
+                    monitor.pause()
+                    logger.info(f"{name}Monitor paused")
+            except Exception as e:
+                logger.error(f"Failed to pause {name}Monitor: {e}")
+    
+    def _resume_monitors(self):
+        """Resume all paused monitors."""
+        for name, monitor in self.monitors:
+            try:
+                if hasattr(monitor, 'resume'):
+                    monitor.resume()
+                    logger.info(f"{name}Monitor resumed")
+            except Exception as e:
+                logger.error(f"Failed to resume {name}Monitor: {e}")
 

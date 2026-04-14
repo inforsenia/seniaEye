@@ -49,6 +49,14 @@ class PortRulesMonitor:
             self.thread.join(timeout=5)
         logger.info("[PORT_RULES] Monitor stopped")
     
+    def pause(self):
+        """Pause is a no-op for port rules monitor (configuration monitor)."""
+        logger.debug("[PORT_RULES] Pause called (no-op)")
+    
+    def resume(self):
+        """Resume is a no-op for port rules monitor (configuration monitor)."""
+        logger.debug("[PORT_RULES] Resume called (no-op)")
+    
     def _run(self):
         """Main run loop for periodic syncing."""
         while self.running:

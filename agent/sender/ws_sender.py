@@ -6,6 +6,7 @@ from websockets import connect, WebSocketException
 from websockets.exceptions import ConnectionClosed
 from agent.events.models import Event
 from agent.utils.config import load_config
+from agent.config.monitoring_state import get_monitoring_state
 
 logger = logging.getLogger("ws_sender")
 logger.setLevel(logging.INFO)
@@ -27,14 +28,14 @@ class WSSender:
         self.event_queue: List[Event] = []
 
         # Estado interno del agente
-        self._monitoring  = False   # True → monitorización activa
+        self._monitoring_state = get_monitoring_state()
         self._ws          = None    # WebSocket activo
 
     # ── API pública ────────────────────────────────────────────────────────────
 
     def add_event(self, event: Event):
         """Añade un evento a la cola. Solo se enviará si la monitorización está activa."""
-        if self._monitoring:
+        if self._monitoring_state.is_monitoring():
             self.event_queue.append(event)
         else:
             logger.debug(f"Evento ignorado (en espera): {event}")
@@ -57,14 +58,14 @@ class WSSender:
 
             except (ConnectionClosed, WebSocketException, OSError) as e:
                 self._ws = None
-                self._monitoring = False
+                self._monitoring_state.set_monitoring(False)
                 logger.warning(f"Conexión perdida: {e}")
                 logger.info(f"Reintentando en {self.retry_delay}s...")
                 await asyncio.sleep(self.retry_delay)
 
             except Exception as e:
                 self._ws = None
-                self._monitoring = False
+                self._monitoring_state.set_monitoring(False)
                 logger.error(f"Error inesperado: {e}")
                 await asyncio.sleep(self.retry_delay)
 
@@ -81,8 +82,8 @@ class WSSender:
             command = msg.get("command")
 
             if command == CMD_START:
-                if not self._monitoring:
-                    self._monitoring = True
+                if not self._monitoring_state.is_monitoring():
+                    self._monitoring_state.set_monitoring(True)
                     logger.info("▶ Monitorización INICIADA")
                     await self._ack(ws, CMD_START)
                     await self._on_start()
@@ -90,8 +91,8 @@ class WSSender:
                     logger.debug("START recibido pero ya estaba monitorizando")
 
             elif command == CMD_STOP:
-                if self._monitoring:
-                    self._monitoring = False
+                if self._monitoring_state.is_monitoring():
+                    self._monitoring_state.set_monitoring(False)
                     logger.info("■ Monitorización DETENIDA")
                     await self._ack(ws, CMD_STOP)
                     await self._on_stop()
@@ -106,7 +107,7 @@ class WSSender:
     async def _send_loop(self, ws):
         """Vacía la cola de eventos mientras haya conexión."""
         while True:
-            if self._monitoring and self.event_queue:
+            if self._monitoring_state.is_monitoring() and self.event_queue:
                 await self._flush_queue(ws)
             await asyncio.sleep(0.5)
 

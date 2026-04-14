@@ -16,8 +16,15 @@ class DNSMonitor:
         self.machine_name = machine_name
         self._thread = None
         self._stop_sniff = threading.Event()
+        self._paused = False
+        self._pause_lock = threading.Lock()
 
     def _process_packet(self, packet):
+        # Skip if paused
+        with self._pause_lock:
+            if self._paused:
+                return
+        
         if packet.haslayer(DNSQR):
             qname = packet[DNSQR].qname.decode(errors="ignore")
             violation = self.violation_checker.check_dns(qname)
@@ -70,3 +77,15 @@ class DNSMonitor:
         self._stop_sniff.set()
         if self._thread:
             self._thread.join(timeout=1)
+    
+    def pause(self):
+        """Pause packet processing without stopping the monitor."""
+        with self._pause_lock:
+            self._paused = True
+        logger.info("[DNS_MONITOR] Paused")
+    
+    def resume(self):
+        """Resume packet processing."""
+        with self._pause_lock:
+            self._paused = False
+        logger.info("[DNS_MONITOR] Resumed")

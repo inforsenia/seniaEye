@@ -119,6 +119,14 @@ class BlockListMonitor:
         if self._thread:
             self._thread.join(timeout=5)
     
+    def pause(self):
+        """Pause is a no-op for block list monitor (configuration monitor)."""
+        logger.debug("[BLOCK_LIST] Pause called (no-op)")
+    
+    def resume(self):
+        """Resume is a no-op for block list monitor (configuration monitor)."""
+        logger.debug("[BLOCK_LIST] Resume called (no-op)")
+    
     def get_block_list(self) -> Dict[str, List[str]]:
         """
         Get current block list.

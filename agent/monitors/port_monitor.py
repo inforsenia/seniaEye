@@ -31,6 +31,8 @@ class PortMonitor:
         self.thread: Optional[threading.Thread] = None
         self.cleanup_thread: Optional[threading.Thread] = None
         self.running = False
+        self._paused = False
+        self._pause_lock = threading.Lock()
         
         # Deduplication cache
         self.event_cache: Dict[Tuple, Dict] = {}
@@ -88,6 +90,11 @@ class PortMonitor:
                 return True  # Report as new event
     
     def _packet_callback(self, packet):
+        # Skip if paused
+        with self._pause_lock:
+            if self._paused:
+                return
+        
         try:
             if not packet.haslayer(IP):
                 return
@@ -183,6 +190,18 @@ class PortMonitor:
         if hasattr(self, 'cleanup_thread') and self.cleanup_thread:
             self.cleanup_thread.join(timeout=5)
         logger.info("[PORT_MONITOR] Stopped")
+    
+    def pause(self):
+        """Pause packet processing without stopping the monitor."""
+        with self._pause_lock:
+            self._paused = True
+        logger.info("[PORT_MONITOR] Paused")
+    
+    def resume(self):
+        """Resume packet processing."""
+        with self._pause_lock:
+            self._paused = False
+        logger.info("[PORT_MONITOR] Resumed")
     
     def _cleanup_loop(self):
         """Periodically clean expired entries from cache."""
