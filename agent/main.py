@@ -81,7 +81,7 @@ async def main():
             event_callback=_sender.add_event,
             machine_name=machine_name,
             interface=get_default_interface(),
-            server_url=server_url
+            server_url=config.base_url
         )
         
         logger.info("Starting monitors...")

@@ -16,6 +16,7 @@ class ConfigLoader:
         self.config_file = Path(config_file)
         self.config = {}
         
+        self.base_url = "127.0.0.1:1984"
         self.server_url = "ws://127.0.0.1:1984/ws/events"
         self.retry_delay = 30
         self.machine_name = ""
@@ -35,13 +36,12 @@ class ConfigLoader:
         
         # Load server settings
         server_config = self.config.get("server", {})
-        ws_url = server_config.get("ws_url", "")
+        base_url = server_config.get("base_url", "http://127.0.0.1:1984")
         
-        if ws_url:
-            if ws_url.startswith("wss://"):
-                self.server_url = "https://" + ws_url[6:].split('/')[0]
-            elif ws_url.startswith("ws://"):
-                self.server_url = "http://" + ws_url[5:].split('/')[0]
+        if base_url:
+            host_port = base_url.split("://")[-1] if "://" in base_url else base_url
+            self.base_url = base_url
+            self.server_url = f"ws://{host_port}/ws/events"
         
         self.retry_delay = server_config.get("retry_delay", self.retry_delay)
         

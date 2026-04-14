@@ -5,8 +5,7 @@
 # ============================================================================
 
 server:
-  # URL del WebSocket del servidor
-  ws_url: "ws://127.0.0.1:1984/ws/events"
+  base_url: "http://127.0.0.1:1984" # Define automaticamente a server_url (eg: ws://127.0.0.1:1984/ws/events)
   
   # Intervalo de reintentos en segundos (cuando se desconecta)
   retry_delay: 30
