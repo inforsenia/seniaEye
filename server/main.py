@@ -12,15 +12,15 @@ from pathlib import Path
 import os
 import logging
 
-from server.database import (
+from server.utils.database import (
     init_db, open_session, close_session, save_event,
     list_sessions, get_session, get_session_events,
     delete_session, delete_all_sessions,
     add_blocked_domain, remove_blocked_domain, list_blocked_domains,
     get_blocked_domain_list, domain_exists, clear_all_blocked_domains
 )
-from server.domain_resolver import DomainResolver
-from server.port_rules_manager import PortRulesManager
+from server.utils.domain_resolver import DomainResolver
+from server.utils.port_rules_manager import PortRulesManager
 
 app = FastAPI()
 
